@@ -24,6 +24,7 @@ import app.organicmaps.R;
 import app.organicmaps.maplayer.MapButtonsController;
 import app.organicmaps.sdk.Framework;
 import app.organicmaps.sdk.Router;
+import app.organicmaps.sdk.routing.RouteSpeedSettings;
 import app.organicmaps.sdk.routing.RoutingController;
 import app.organicmaps.sdk.routing.RoutingInfo;
 import app.organicmaps.sdk.routing.RoutingOptions;
@@ -362,16 +363,11 @@ public class RoutingPlanFragment extends Fragment implements View.OnLayoutChange
     }
   }
 
+  /** @return how many routing options the user has changed, road types and personal speed alike. */
   private static int getRoutingOptionsCount()
   {
-    if (Router.isRouteSpeedSettingSupported())
-    {
-      int count = Router.getRouteSpeedPercentage() == Router.DEFAULT_ROUTE_SPEED_PERCENTAGE ? 0 : 1;
-      if (Router.isBicycleWindSettingSupported() && Router.isBicycleWindEnabled())
-        ++count;
-      return count;
-    }
-    return RoutingOptions.getActiveRoadTypes().size();
+    RouteSpeedSettings speedSettings = RouteSpeedSettings.nativeGet();
+    return RoutingOptions.getActiveRoadTypes().size() + (speedSettings == null ? 0 : speedSettings.changedCount());
   }
 
   private void updateBuildProgress(int progress, @NonNull Router router)

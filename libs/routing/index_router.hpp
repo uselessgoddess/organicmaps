@@ -71,8 +71,8 @@ public:
   IndexRouter(VehicleType vehicleType, bool loadAltitudes, CountryParentNameGetterFn const & countryParentNameGetterFn,
               TCountryFileFn const & countryFileFn, CountryRectFn const & countryRectFn,
               std::shared_ptr<NumMwmIds> numMwmIds, std::shared_ptr<m4::Tree<NumMwmId>> numMwmTree,
-              traffic::TrafficCache const & trafficCache, DataSource & dataSource, double routeSpeedFactor = 1.0,
-              double windSpeedMpS = 0.0, double windFromDirectionDegrees = 0.0);
+              traffic::TrafficCache const & trafficCache, DataSource & dataSource,
+              RouteSpeedSettings const & speedSettings = {});
 
   std::unique_ptr<WorldGraph> MakeSingleMwmWorldGraph();
 

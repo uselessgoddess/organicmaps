@@ -4,101 +4,81 @@
 
 #include "base/assert.hpp"
 
+#include <algorithm>
 #include <string_view>
 
 namespace routing
 {
 namespace
 {
-std::string_view constexpr kPedestrianRouteSpeedKey = "routing_speed_percentage_pedestrian";
-std::string_view constexpr kBicycleRouteSpeedKey = "routing_speed_percentage_bicycle";
-std::string_view constexpr kBicycleWindEnabledKey = "routing_wind_enabled_bicycle";
-std::string_view constexpr kBicycleWindSpeedKey = "routing_wind_speed_mps_bicycle";
-std::string_view constexpr kBicycleWindDirectionKey = "routing_wind_direction_degrees_bicycle";
-// Reference speeds shown in the UI. Route-specific ETA speeds are still adjusted by the saved factor.
-double constexpr kPedestrianCruisingSpeedKMpH = 5.0;
-double constexpr kBicycleCruisingSpeedKMpH = 20.0;
+// {min, max, step, default} cruising speed on flat pavement, km/h. The defaults are the speeds the
+// routing profiles already predict there, so the default setting keeps the current ETA.
+CruisingSpeedRange constexpr kPedestrianSpeedRange{2.0, 9.0, 0.5, 5.0};
+CruisingSpeedRange constexpr kBicycleSpeedRange{8.0, 40.0, 1.0, 20.0};
 
-std::string_view GetSettingsKey(VehicleType vehicleType)
+std::string_view constexpr kPedestrianSpeedKey = "routing_cruising_speed_kmph_pedestrian";
+std::string_view constexpr kBicycleSpeedKey = "routing_cruising_speed_kmph_bicycle";
+std::string_view constexpr kWindSpeedKey = "routing_wind_speed_mps_bicycle";
+std::string_view constexpr kWindDirectionKey = "routing_wind_direction_degrees_bicycle";
+
+std::string_view GetSpeedKey(VehicleType vehicleType)
 {
-  CHECK(RouteSpeedSettings::IsSupported(vehicleType), (vehicleType));
-  return vehicleType == VehicleType::Pedestrian ? kPedestrianRouteSpeedKey : kBicycleRouteSpeedKey;
+  return vehicleType == VehicleType::Pedestrian ? kPedestrianSpeedKey : kBicycleSpeedKey;
 }
 }  // namespace
 
-bool RouteSpeedSettings::IsSupported(VehicleType vehicleType)
+bool IsRouteSpeedSupported(VehicleType vehicleType)
 {
   return vehicleType == VehicleType::Pedestrian || vehicleType == VehicleType::Bicycle;
 }
 
-int RouteSpeedSettings::Load(VehicleType vehicleType)
+bool IsWindSupported(VehicleType vehicleType)
 {
-  CHECK(IsSupported(vehicleType), (vehicleType));
-
-  int percentage = kDefaultPercentage;
-  if (!settings::Get(GetSettingsKey(vehicleType), percentage) || percentage < kMinPercentage ||
-      percentage > kMaxPercentage || percentage % kStepPercentage != 0)
-  {
-    return kDefaultPercentage;
-  }
-  return percentage;
+  return vehicleType == VehicleType::Bicycle;
 }
 
-void RouteSpeedSettings::Save(VehicleType vehicleType, int percentage)
+CruisingSpeedRange GetCruisingSpeedRange(VehicleType vehicleType)
 {
-  CHECK(IsSupported(vehicleType), (vehicleType));
-  CHECK_GREATER_OR_EQUAL(percentage, kMinPercentage, ());
-  CHECK_LESS_OR_EQUAL(percentage, kMaxPercentage, ());
-  CHECK_EQUAL(percentage % kStepPercentage, 0, ());
-  settings::Set(GetSettingsKey(vehicleType), percentage);
+  CHECK(IsRouteSpeedSupported(vehicleType), (vehicleType));
+  return vehicleType == VehicleType::Pedestrian ? kPedestrianSpeedRange : kBicycleSpeedRange;
 }
 
-double RouteSpeedSettings::GetFactor(VehicleType vehicleType)
+RouteSpeedSettings LoadRouteSpeedSettings(VehicleType vehicleType)
 {
-  return Load(vehicleType) / 100.0;
-}
-
-double RouteSpeedSettings::GetDefaultCruisingSpeedKMpH(VehicleType vehicleType)
-{
-  CHECK(IsSupported(vehicleType), (vehicleType));
-  return vehicleType == VehicleType::Pedestrian ? kPedestrianCruisingSpeedKMpH : kBicycleCruisingSpeedKMpH;
-}
-
-double RouteSpeedSettings::PercentageToCruisingSpeedKMpH(VehicleType vehicleType, int percentage)
-{
-  CHECK_GREATER_OR_EQUAL(percentage, kMinPercentage, ());
-  CHECK_LESS_OR_EQUAL(percentage, kMaxPercentage, ());
-  CHECK_EQUAL(percentage % kStepPercentage, 0, ());
-  return GetDefaultCruisingSpeedKMpH(vehicleType) * percentage / 100.0;
-}
-
-BicycleWindSettings RouteSpeedSettings::LoadBicycleWind()
-{
-  BicycleWindSettings wind;
-  settings::TryGet(kBicycleWindEnabledKey, wind.m_enabled);
-  settings::TryGet(kBicycleWindSpeedKey, wind.m_speedMpS);
-  settings::TryGet(kBicycleWindDirectionKey, wind.m_directionDegrees);
-
-  if (wind.m_speedMpS < kMinWindSpeedMpS || wind.m_speedMpS > kMaxWindSpeedMpS ||
-      wind.m_speedMpS % kWindSpeedStepMpS != 0 || wind.m_directionDegrees < 0 || wind.m_directionDegrees >= 360 ||
-      wind.m_directionDegrees % kWindDirectionStepDegrees != 0)
-  {
+  if (!IsRouteSpeedSupported(vehicleType))
     return {};
+
+  auto const range = GetCruisingSpeedRange(vehicleType);
+  RouteSpeedSettings settings{range.m_default};
+
+  double speedKMpH = 0.0;
+  if (settings::Get(GetSpeedKey(vehicleType), speedKMpH) && speedKMpH >= range.m_min && speedKMpH <= range.m_max)
+    settings.m_cruisingSpeedKMpH = speedKMpH;
+
+  int windSpeedMpS = 0;
+  int windDirectionDegrees = 0;
+  if (IsWindSupported(vehicleType) && settings::Get(kWindSpeedKey, windSpeedMpS) &&
+      settings::Get(kWindDirectionKey, windDirectionDegrees) && windSpeedMpS > 0 && windSpeedMpS <= kMaxWindSpeedMpS &&
+      windDirectionDegrees >= 0 && windDirectionDegrees < 360)
+  {
+    settings.m_windSpeedMpS = windSpeedMpS;
+    settings.m_windDirectionDegrees = windDirectionDegrees;
   }
-  return wind;
+
+  return settings;
 }
 
-void RouteSpeedSettings::SaveBicycleWind(BicycleWindSettings const & wind)
+void SaveRouteSpeedSettings(VehicleType vehicleType, RouteSpeedSettings const & settings)
 {
-  CHECK_GREATER_OR_EQUAL(wind.m_speedMpS, kMinWindSpeedMpS, ());
-  CHECK_LESS_OR_EQUAL(wind.m_speedMpS, kMaxWindSpeedMpS, ());
-  CHECK_EQUAL(wind.m_speedMpS % kWindSpeedStepMpS, 0, ());
-  CHECK_GREATER_OR_EQUAL(wind.m_directionDegrees, 0, ());
-  CHECK_LESS(wind.m_directionDegrees, 360, ());
-  CHECK_EQUAL(wind.m_directionDegrees % kWindDirectionStepDegrees, 0, ());
+  if (!IsRouteSpeedSupported(vehicleType))
+    return;
 
-  settings::Set(kBicycleWindEnabledKey, wind.m_enabled);
-  settings::Set(kBicycleWindSpeedKey, wind.m_speedMpS);
-  settings::Set(kBicycleWindDirectionKey, wind.m_directionDegrees);
+  auto const range = GetCruisingSpeedRange(vehicleType);
+  settings::Set(GetSpeedKey(vehicleType), std::clamp(settings.m_cruisingSpeedKMpH, range.m_min, range.m_max));
+
+  if (!IsWindSupported(vehicleType))
+    return;
+  settings::Set(kWindSpeedKey, std::clamp(settings.m_windSpeedMpS, 0, kMaxWindSpeedMpS));
+  settings::Set(kWindDirectionKey, std::clamp(settings.m_windDirectionDegrees, 0, 359));
 }
 }  // namespace routing

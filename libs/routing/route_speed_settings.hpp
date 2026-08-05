@@ -4,37 +4,37 @@
 
 namespace routing
 {
-struct BicycleWindSettings;
-
-class RouteSpeedSettings
+/// \brief Personal speed the user keeps and, for bicycles, the wind they ride in. Both correct the
+/// estimated time of arrival only: the route itself is chosen exactly as before.
+struct RouteSpeedSettings
 {
-public:
-  static int constexpr kDefaultPercentage = 100;
-  static int constexpr kMinPercentage = 50;
-  static int constexpr kMaxPercentage = 200;
-  static int constexpr kStepPercentage = 5;
-  static int constexpr kDefaultWindSpeedMpS = 3;
-  static int constexpr kMinWindSpeedMpS = 1;
-  static int constexpr kMaxWindSpeedMpS = 30;
-  static int constexpr kWindSpeedStepMpS = 1;
-  static int constexpr kWindDirectionStepDegrees = 45;
+  /// Cruising speed on flat pavement, km/h. 0 means "use the profile default".
+  double m_cruisingSpeedKMpH = 0.0;
+  /// Wind speed, m/s. 0 means "do not take the wind into account".
+  int m_windSpeedMpS = 0;
+  /// Compass direction the wind blows from, degrees.
+  int m_windDirectionDegrees = 0;
 
-  static bool IsSupported(VehicleType vehicleType);
-  static int Load(VehicleType vehicleType);
-  static void Save(VehicleType vehicleType, int percentage);
-  static double GetFactor(VehicleType vehicleType);
-  static double GetDefaultCruisingSpeedKMpH(VehicleType vehicleType);
-  static double PercentageToCruisingSpeedKMpH(VehicleType vehicleType, int percentage);
-  static BicycleWindSettings LoadBicycleWind();
-  static void SaveBicycleWind(BicycleWindSettings const & wind);
+  bool operator==(RouteSpeedSettings const &) const = default;
 };
 
-struct BicycleWindSettings
+/// \brief Cruising speeds the UI offers for a vehicle type, km/h.
+struct CruisingSpeedRange
 {
-  bool m_enabled = false;
-  int m_speedMpS = RouteSpeedSettings::kDefaultWindSpeedMpS;
-  int m_directionDegrees = 0;
-
-  bool operator==(BicycleWindSettings const &) const = default;
+  double m_min;
+  double m_max;
+  double m_step;
+  double m_default;
 };
+
+int constexpr kMaxWindSpeedMpS = 20;
+int constexpr kWindDirectionStepDegrees = 45;
+
+/// Only muscle-powered routers have a personal speed, and only cyclists are noticeably slowed by wind.
+bool IsRouteSpeedSupported(VehicleType vehicleType);
+bool IsWindSupported(VehicleType vehicleType);
+
+CruisingSpeedRange GetCruisingSpeedRange(VehicleType vehicleType);
+RouteSpeedSettings LoadRouteSpeedSettings(VehicleType vehicleType);
+void SaveRouteSpeedSettings(VehicleType vehicleType, RouteSpeedSettings const & settings);
 }  // namespace routing

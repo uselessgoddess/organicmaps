@@ -62,6 +62,48 @@ bool IsTransit(std::optional<HighwayType> type)
   return type && (type == HighwayType::RouteFerry || type == HighwayType::RouteShuttleTrain);
 }
 
+// Simplified cycling power model, see Martin et al. (1998), "Validation of a Mathematical Model for
+// Road Cycling Power". A rider holds a roughly constant power, and the wind changes the aerodynamic
+// term only, so the ground speed drops much less than the headwind itself:
+//   P = F_other * v + kDragFactor * v * (v + headwind)^2
+double constexpr kAirDensityKgPerM3 = 1.225;  // at sea level, 15 C
+double constexpr kDragAreaM2 = 0.4;           // CdA of an upright rider
+double constexpr kDragFactor = 0.5 * kAirDensityKgPerM3 * kDragAreaM2;
+double constexpr kRollingForceN = 4.0;  // rolling resistance and drivetrain losses of a 80 kg rider + bicycle
+
+/// \returns the power implied by |cruisingSpeedMpS| on flat pavement in still air: 64 W at 20 km/h,
+/// 175 W at 30 km/h.
+double RiderPowerW(double cruisingSpeedMpS)
+{
+  return kRollingForceN * cruisingSpeedMpS + kDragFactor * math::Pow2(cruisingSpeedMpS) * cruisingSpeedMpS;
+}
+
+/// \returns the ground speed of a rider holding |powerW| against |headwindMpS| (negative for a
+/// tailwind) on a segment where they would ride |stillSpeedMpS| in still air.
+double SpeedWithHeadwindMpS(double stillSpeedMpS, double headwindMpS, double powerW)
+{
+  ASSERT_GREATER(stillSpeedMpS, 0.0, ());
+
+  // Everything that does not depend on the wind (rolling resistance, gravity, surface), recovered
+  // from the speed the routing profile predicts for this segment. Climbs and dirt roads are slow
+  // for reasons the wind does not change, so the wind barely slows them down further.
+  double const otherForceN = powerW / stillSpeedMpS - kDragFactor * math::Pow2(stillSpeedMpS);
+
+  auto const excessPowerW = [&](double speedMpS)
+  { return otherForceN * speedMpS + kDragFactor * speedMpS * math::Pow2(speedMpS + headwindMpS) - powerW; };
+
+  // The root is bracketed: excessPowerW() is -powerW at 0 and at least powerW * |headwind| /
+  // stillSpeed above 0 at the upper bound, and the power grows monotonically around the root.
+  double lo = 0.0;
+  double hi = stillSpeedMpS + std::fabs(headwindMpS);
+  for (size_t i = 0; i < 32; ++i)
+  {
+    double const mid = 0.5 * (lo + hi);
+    (excessPowerW(mid) < 0.0 ? lo : hi) = mid;
+  }
+  return 0.5 * (lo + hi);
+}
+
 template <class CalcSpeed>
 double CalcClimbSegment(EdgeEstimator::Purpose purpose, Segment const & segment, RoadGeometry const & road,
                         CalcSpeed && calcSpeed)
@@ -254,30 +296,31 @@ double EdgeEstimator::GetMaxWeightSpeedMpS() const
   return m_maxWeightSpeedMpS;
 }
 
-void EdgeEstimator::SetRouteSpeedFactor(double factor)
+void EdgeEstimator::SetRouteSpeedSettings(VehicleType vehicleType, RouteSpeedSettings const & settings)
 {
-  CHECK_GREATER(factor, 0.0, ());
-  m_routeSpeedFactor = factor;
+  if (!IsRouteSpeedSupported(vehicleType) || settings.m_cruisingSpeedKMpH <= 0.0)
+    return;
+
+  // The routing profile already predicts the default cruising speed on flat pavement, so a user
+  // riding faster than that covers every segment proportionally faster.
+  m_etaSpeedFactor = settings.m_cruisingSpeedKMpH / GetCruisingSpeedRange(vehicleType).m_default;
+
+  if (!IsWindSupported(vehicleType))
+    return;
+  m_windSpeedMpS = settings.m_windSpeedMpS;
+  m_windFromDirectionRad = math::DegToRad(static_cast<double>(settings.m_windDirectionDegrees));
+  m_riderPowerW = RiderPowerW(KmphToMps(settings.m_cruisingSpeedKMpH));
 }
 
-void EdgeEstimator::SetWind(double speedMpS, double fromDirectionDegrees)
+double EdgeEstimator::ApplyEtaSpeedFactor(double timeSec, Purpose purpose) const
 {
-  CHECK_GREATER_OR_EQUAL(speedMpS, 0.0, ());
-  CHECK_GREATER_OR_EQUAL(fromDirectionDegrees, 0.0, ());
-  CHECK_LESS(fromDirectionDegrees, 360.0, ());
-  m_windSpeedMpS = speedMpS;
-  m_windFromDirectionDegrees = fromDirectionDegrees;
+  return purpose == Purpose::ETA ? timeSec / m_etaSpeedFactor : timeSec;
 }
 
-double EdgeEstimator::ApplyRouteSpeedFactor(double timeSec, Purpose purpose) const
+double EdgeEstimator::ApplyEtaWind(double timeSec, Purpose purpose, ms::LatLon const & from,
+                                   ms::LatLon const & to) const
 {
-  return purpose == Purpose::ETA ? timeSec / m_routeSpeedFactor : timeSec;
-}
-
-double EdgeEstimator::ApplyRouteModifiers(double timeSec, Purpose purpose, ms::LatLon const & from,
-                                          ms::LatLon const & to) const
-{
-  timeSec = ApplyRouteSpeedFactor(timeSec, purpose);
+  timeSec = ApplyEtaSpeedFactor(timeSec, purpose);
   if (purpose != Purpose::ETA || m_windSpeedMpS == 0.0 || timeSec == 0.0)
     return timeSec;
 
@@ -285,13 +328,10 @@ double EdgeEstimator::ApplyRouteModifiers(double timeSec, Purpose purpose, ms::L
   if (distanceM == 0.0)
     return timeSec;
 
-  double const routeSpeedMpS = distanceM / timeSec;
-  double const routeDirection = ang::Azimuth(mercator::FromLatLon(from), mercator::FromLatLon(to));
-  double const windFromDirection = math::DegToRad(m_windFromDirectionDegrees);
-  double const tailwindMpS = -m_windSpeedMpS * std::cos(routeDirection - windFromDirection);
-  // Keep a strong headwind from producing a zero or negative ground speed in this simplified model.
-  double const adjustedSpeedMpS = std::max(routeSpeedMpS + tailwindMpS, routeSpeedMpS * 0.25);
-  return distanceM / adjustedSpeedMpS;
+  // Along-track wind component, positive for a headwind.
+  double const course = ang::Azimuth(mercator::FromLatLon(from), mercator::FromLatLon(to));
+  double const headwindMpS = m_windSpeedMpS * std::cos(course - m_windFromDirectionRad);
+  return distanceM / SpeedWithHeadwindMpS(distanceM / timeSec, headwindMpS, m_riderPowerW);
 }
 
 double EdgeEstimator::CalcOffroad(ms::LatLon const & from, ms::LatLon const & to, Purpose purpose) const
@@ -301,7 +341,7 @@ double EdgeEstimator::CalcOffroad(ms::LatLon const & from, ms::LatLon const & to
     return 0.0;
 
   double const time = TimeBetweenSec(from, to, KmphToMps(offroadSpeedKMpH));
-  return ApplyRouteModifiers(purpose == Purpose::Weight ? time * m_transitWalkWeightFactor : time, purpose, from, to);
+  return ApplyEtaSpeedFactor(purpose == Purpose::Weight ? time * m_transitWalkWeightFactor : time, purpose);
 }
 
 // PedestrianEstimator -----------------------------------------------------------------------------
@@ -336,11 +376,10 @@ public:
     // Bias the transit alternative away from walking (see SetTransitAltFactors). No-op (factor 1.0)
     // for standalone pedestrian routing and for the primary transit route.
     double const adjustedWeight = purpose == Purpose::Weight ? weight * GetTransitWalkWeightFactor() : weight;
+    // A ferry does not sail faster for a faster walker.
     if (IsTransit(road.GetHighwayType()))
       return adjustedWeight;
-    auto const & from = road.GetJunction(segment.GetPointId(false /* front */)).GetLatLon();
-    auto const & to = road.GetJunction(segment.GetPointId(true /* front */)).GetLatLon();
-    return ApplyRouteModifiers(adjustedWeight, purpose, from, to);
+    return ApplyEtaSpeedFactor(adjustedWeight, purpose);
   }
 };
 
@@ -400,11 +439,12 @@ public:
 
       return std::min(speedMpS, GetMaxWeightSpeedMpS());
     });
+    // A ferry does not sail faster for a faster rider, and its deck is sheltered from the wind.
     if (IsTransit(road.GetHighwayType()))
       return time;
     auto const & from = road.GetJunction(segment.GetPointId(false /* front */)).GetLatLon();
     auto const & to = road.GetJunction(segment.GetPointId(true /* front */)).GetLatLon();
-    return ApplyRouteModifiers(time, purpose, from, to);
+    return ApplyEtaWind(time, purpose, from, to);
   }
 };
 

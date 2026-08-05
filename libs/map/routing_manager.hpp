@@ -8,6 +8,7 @@
 
 #include "routing/following_info.hpp"
 #include "routing/route.hpp"
+#include "routing/route_speed_settings.hpp"
 #include "routing/router.hpp"
 #include "routing/routing_callbacks.hpp"
 #include "routing/routing_session.hpp"
@@ -120,15 +121,12 @@ public:
   routing::RoutingSession & RoutingSession() { return m_routingSession; }
   void SetRouter(routing::RouterType type);
   routing::RouterType GetRouter() const { return m_currentRouterType; }
-  bool IsRouteSpeedSettingSupported() const;
-  int GetRouteSpeedPercentage() const;
-  double GetRouteDefaultCruisingSpeedKMpH() const;
-  void SetRouteSpeedPercentage(int percentage);
-  bool IsBicycleWindSettingSupported() const;
-  bool IsBicycleWindEnabled() const;
-  int GetBicycleWindSpeedMpS() const;
-  int GetBicycleWindDirectionDegrees() const;
-  void SetBicycleRouteSettings(int speedPercentage, bool windEnabled, int windSpeedMpS, int windDirectionDegrees);
+  /// \returns the vehicle the current router drives, or VehicleType::Count if no router is set yet.
+  /// Together with routing::IsRouteSpeedSupported() and routing::LoadRouteSpeedSettings() this is
+  /// all the UI needs to show the personal speed and wind settings.
+  routing::VehicleType GetRouterVehicleType() const;
+  /// Saves |settings| for the current router and rebuilds it if they changed.
+  void SetRouteSpeedSettings(routing::RouteSpeedSettings const & settings);
   bool IsRoutingActive() const { return m_routingSession.IsActive(); }
   bool IsRouteBuilt() const { return m_routingSession.IsBuilt(); }
   bool IsRouteBuilding() const { return m_routingSession.IsBuilding(); }

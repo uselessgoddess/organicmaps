@@ -2,12 +2,11 @@ package app.organicmaps.settings;
 
 import android.app.Activity;
 import android.os.Bundle;
-import android.util.Pair;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.CompoundButton;
 import android.widget.TextView;
+import androidx.annotation.IdRes;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.StringRes;
@@ -15,11 +14,10 @@ import androidx.appcompat.widget.SwitchCompat;
 import androidx.core.view.ViewCompat;
 import app.organicmaps.R;
 import app.organicmaps.base.BaseMwmToolbarFragment;
-import app.organicmaps.sdk.Router;
+import app.organicmaps.sdk.routing.RouteSpeedSettings;
 import app.organicmaps.sdk.routing.RoutingOptions;
 import app.organicmaps.sdk.settings.RoadType;
 import app.organicmaps.sdk.settings.UnitLocale;
-import app.organicmaps.sdk.util.StringUtils;
 import app.organicmaps.util.WindowInsetUtils.PaddingInsetsListener;
 import com.google.android.material.slider.Slider;
 import java.text.NumberFormat;
@@ -33,10 +31,11 @@ import java.util.Set;
 public class DrivingOptionsFragment extends BaseMwmToolbarFragment
 {
   public static final String BUNDLE_ROAD_TYPES = "road_types";
-  private static final String BUNDLE_ROUTE_SPEED = "route_speed";
+  private static final String BUNDLE_CRUISING_SPEED = "cruising_speed";
   private static final String BUNDLE_WIND_ENABLED = "wind_enabled";
   private static final String BUNDLE_WIND_SPEED = "wind_speed";
   private static final String BUNDLE_WIND_DIRECTION = "wind_direction";
+  private static final double KMPH_TO_MPH = 0.621371192;
   @StringRes
   private static final int[] WIND_DIRECTION_LABELS = {
       R.string.route_wind_direction_n,  R.string.route_wind_direction_ne, R.string.route_wind_direction_e,
@@ -45,16 +44,12 @@ public class DrivingOptionsFragment extends BaseMwmToolbarFragment
   @NonNull
   private Set<RoadType> mRoadTypes = Collections.emptySet();
   private View mContent;
-  private boolean mRouteSpeedSupported;
-  private int mInitialRouteSpeedPercentage;
-  private int mRouteSpeedPercentage;
-  private double mRouteDefaultCruisingSpeedKmph;
-  private boolean mWindSupported;
-  private boolean mInitialWindEnabled;
+  /** The settings the current router was built with, or null if it has no personal speed (car, transit). */
+  @Nullable
+  private RouteSpeedSettings mSettings;
+  private double mCruisingSpeedKmph;
   private boolean mWindEnabled;
-  private int mInitialWindSpeedMps;
   private int mWindSpeedMps;
-  private int mInitialWindDirectionDegrees;
   private int mWindDirectionDegrees;
 
   @Nullable
@@ -63,24 +58,21 @@ public class DrivingOptionsFragment extends BaseMwmToolbarFragment
                            @Nullable Bundle savedInstanceState)
   {
     View root = inflater.inflate(R.layout.fragment_driving_options, container, false);
-    mRouteSpeedSupported = Router.isRouteSpeedSettingSupported();
-    mInitialRouteSpeedPercentage =
-        mRouteSpeedSupported ? Router.getRouteSpeedPercentage() : Router.DEFAULT_ROUTE_SPEED_PERCENTAGE;
-    mRouteDefaultCruisingSpeedKmph = mRouteSpeedSupported ? Router.getRouteDefaultCruisingSpeedKmph() : 0.0;
-    mRouteSpeedPercentage = savedInstanceState != null
-                              ? savedInstanceState.getInt(BUNDLE_ROUTE_SPEED, mInitialRouteSpeedPercentage)
-                              : mInitialRouteSpeedPercentage;
-    mWindSupported = Router.isBicycleWindSettingSupported();
-    mInitialWindEnabled = mWindSupported && Router.isBicycleWindEnabled();
-    mInitialWindSpeedMps = mWindSupported ? Router.getBicycleWindSpeedMps() : Router.DEFAULT_WIND_SPEED_MPS;
-    mInitialWindDirectionDegrees = mWindSupported ? Router.getBicycleWindDirectionDegrees() : 0;
-    mWindEnabled = savedInstanceState != null ? savedInstanceState.getBoolean(BUNDLE_WIND_ENABLED, mInitialWindEnabled)
-                                              : mInitialWindEnabled;
-    mWindSpeedMps = savedInstanceState != null ? savedInstanceState.getInt(BUNDLE_WIND_SPEED, mInitialWindSpeedMps)
-                                               : mInitialWindSpeedMps;
-    mWindDirectionDegrees = savedInstanceState != null
-                              ? savedInstanceState.getInt(BUNDLE_WIND_DIRECTION, mInitialWindDirectionDegrees)
-                              : mInitialWindDirectionDegrees;
+    mSettings = RouteSpeedSettings.nativeGet();
+    if (mSettings != null)
+    {
+      mCruisingSpeedKmph = mSettings.cruisingSpeedKmph;
+      mWindEnabled = mSettings.windSpeedMps > 0;
+      mWindSpeedMps = mWindEnabled ? mSettings.windSpeedMps : RouteSpeedSettings.DEFAULT_WIND_SPEED_MPS;
+      mWindDirectionDegrees = mSettings.windDirectionDegrees;
+      if (savedInstanceState != null)
+      {
+        mCruisingSpeedKmph = savedInstanceState.getDouble(BUNDLE_CRUISING_SPEED, mCruisingSpeedKmph);
+        mWindEnabled = savedInstanceState.getBoolean(BUNDLE_WIND_ENABLED, mWindEnabled);
+        mWindSpeedMps = savedInstanceState.getInt(BUNDLE_WIND_SPEED, mWindSpeedMps);
+        mWindDirectionDegrees = savedInstanceState.getInt(BUNDLE_WIND_DIRECTION, mWindDirectionDegrees);
+      }
+    }
     initViews(root);
     ViewCompat.setOnApplyWindowInsetsListener(mContent, new PaddingInsetsListener(false, true, true, true));
     mRoadTypes = savedInstanceState != null && savedInstanceState.containsKey(BUNDLE_ROAD_TYPES)
@@ -111,25 +103,30 @@ public class DrivingOptionsFragment extends BaseMwmToolbarFragment
       savedRoadTypes.add(each.ordinal());
     }
     outState.putIntegerArrayList(BUNDLE_ROAD_TYPES, savedRoadTypes);
-    outState.putInt(BUNDLE_ROUTE_SPEED, mRouteSpeedPercentage);
+    outState.putDouble(BUNDLE_CRUISING_SPEED, mCruisingSpeedKmph);
     outState.putBoolean(BUNDLE_WIND_ENABLED, mWindEnabled);
     outState.putInt(BUNDLE_WIND_SPEED, mWindSpeedMps);
     outState.putInt(BUNDLE_WIND_DIRECTION, mWindDirectionDegrees);
   }
 
+  /** @return the wind to route with, 0 m/s meaning the user asked not to take it into account. */
+  private int windSpeedMps()
+  {
+    return mWindEnabled ? mWindSpeedMps : 0;
+  }
+
+  private boolean isRouteSpeedChanged()
+  {
+    if (mSettings == null)
+      return false;
+    if (mCruisingSpeedKmph != mSettings.cruisingSpeedKmph || windSpeedMps() != mSettings.windSpeedMps)
+      return true;
+    return mWindEnabled && mWindDirectionDegrees != mSettings.windDirectionDegrees;
+  }
+
   private boolean areSettingsNotChanged()
   {
-    if (mRouteSpeedSupported)
-    {
-      boolean speedUnchanged = mInitialRouteSpeedPercentage == mRouteSpeedPercentage;
-      boolean windUnchanged = !mWindSupported
-                           || (mInitialWindEnabled == mWindEnabled && mInitialWindSpeedMps == mWindSpeedMps
-                               && mInitialWindDirectionDegrees == mWindDirectionDegrees);
-      return speedUnchanged && windUnchanged;
-    }
-
-    Set<RoadType> lastActiveRoadTypes = RoutingOptions.getActiveRoadTypes();
-    return mRoadTypes.equals(lastActiveRoadTypes);
+    return mRoadTypes.equals(RoutingOptions.getActiveRoadTypes()) && !isRouteSpeedChanged();
   }
 
   @Override
@@ -141,10 +138,8 @@ public class DrivingOptionsFragment extends BaseMwmToolbarFragment
     }
     else
     {
-      if (mWindSupported)
-        Router.setBicycleRouteSettings(mRouteSpeedPercentage, mWindEnabled, mWindSpeedMps, mWindDirectionDegrees);
-      else if (mRouteSpeedSupported)
-        Router.setRouteSpeedPercentage(mRouteSpeedPercentage);
+      if (isRouteSpeedChanged())
+        RouteSpeedSettings.nativeSet(mCruisingSpeedKmph, windSpeedMps(), mWindDirectionDegrees);
       requireActivity().setResult(Activity.RESULT_OK);
     }
 
@@ -154,120 +149,106 @@ public class DrivingOptionsFragment extends BaseMwmToolbarFragment
   private void initViews(@NonNull View root)
   {
     mContent = root.findViewById(R.id.content);
-    root.findViewById(R.id.car_options).setVisibility(mRouteSpeedSupported ? View.GONE : View.VISIBLE);
 
-    View routeSpeedOptions = root.findViewById(R.id.route_speed_options);
-    routeSpeedOptions.setVisibility(mRouteSpeedSupported ? View.VISIBLE : View.GONE);
-    if (mRouteSpeedSupported)
+    initRoadTypeSwitch(root, R.id.avoid_tolls_btn, RoadType.Toll);
+    initRoadTypeSwitch(root, R.id.avoid_dirty_roads_btn, RoadType.Dirty);
+    initRoadTypeSwitch(root, R.id.avoid_ferries_btn, RoadType.Ferry);
+    initRoadTypeSwitch(root, R.id.avoid_motorways_btn, RoadType.Motorway);
+
+    View speedOptions = root.findViewById(R.id.route_speed_options);
+    if (mSettings == null)
     {
-      TextView routeSpeedValue = root.findViewById(R.id.route_speed_value);
-      Slider routeSpeedSlider = root.findViewById(R.id.route_speed_slider);
-      routeSpeedSlider.setValue(mRouteSpeedPercentage);
-      routeSpeedValue.setText(formatCruisingSpeed(mRouteSpeedPercentage));
-      routeSpeedSlider.addOnChangeListener((slider, value, fromUser) -> {
-        mRouteSpeedPercentage = Math.round(value);
-        routeSpeedValue.setText(formatCruisingSpeed(mRouteSpeedPercentage));
-      });
+      speedOptions.setVisibility(View.GONE);
+      return;
     }
+    speedOptions.setVisibility(View.VISIBLE);
+
+    TextView speedValue = root.findViewById(R.id.route_speed_value);
+    Slider speedSlider = root.findViewById(R.id.route_speed_slider);
+    speedSlider.setValueFrom((float) mSettings.minSpeedKmph);
+    speedSlider.setValueTo((float) mSettings.maxSpeedKmph);
+    speedSlider.setStepSize((float) mSettings.speedStepKmph);
+    speedSlider.setValue((float) mCruisingSpeedKmph);
+    speedValue.setText(formatCruisingSpeed(mCruisingSpeedKmph));
+    speedSlider.addOnChangeListener((slider, value, fromUser) -> {
+      mCruisingSpeedKmph = value;
+      speedValue.setText(formatCruisingSpeed(mCruisingSpeedKmph));
+    });
 
     View windOptions = root.findViewById(R.id.route_wind_options);
-    windOptions.setVisibility(mWindSupported ? View.VISIBLE : View.GONE);
-    if (mWindSupported)
+    if (!mSettings.isWindSupported())
     {
-      SwitchCompat windEnabled = root.findViewById(R.id.route_wind_enabled);
-      View windInputs = root.findViewById(R.id.route_wind_inputs);
-      TextView windSpeedValue = root.findViewById(R.id.route_wind_speed_value);
-      Slider windSpeedSlider = root.findViewById(R.id.route_wind_speed_slider);
-      TextView windDirectionValue = root.findViewById(R.id.route_wind_direction_value);
-      Slider windDirectionSlider = root.findViewById(R.id.route_wind_direction_slider);
-
-      windEnabled.setChecked(mWindEnabled);
-      windInputs.setVisibility(mWindEnabled ? View.VISIBLE : View.GONE);
-      windSpeedSlider.setValue(mWindSpeedMps);
-      windSpeedValue.setText(formatWindSpeed(mWindSpeedMps));
-      windDirectionSlider.setValue(mWindDirectionDegrees);
-      windDirectionValue.setText(formatWindDirection(mWindDirectionDegrees));
-
-      windEnabled.setOnCheckedChangeListener((button, isChecked) -> {
-        mWindEnabled = isChecked;
-        windInputs.setVisibility(isChecked ? View.VISIBLE : View.GONE);
-      });
-      windSpeedSlider.addOnChangeListener((slider, value, fromUser) -> {
-        mWindSpeedMps = Math.round(value);
-        windSpeedValue.setText(formatWindSpeed(mWindSpeedMps));
-      });
-      windDirectionSlider.addOnChangeListener((slider, value, fromUser) -> {
-        mWindDirectionDegrees = Math.round(value);
-        windDirectionValue.setText(formatWindDirection(mWindDirectionDegrees));
-      });
+      windOptions.setVisibility(View.GONE);
+      return;
     }
+    windOptions.setVisibility(View.VISIBLE);
 
-    SwitchCompat tollsBtn = root.findViewById(R.id.avoid_tolls_btn);
-    tollsBtn.setChecked(RoutingOptions.hasOption(RoadType.Toll));
-    CompoundButton.OnCheckedChangeListener tollBtnListener = new ToggleRoutingOptionListener(RoadType.Toll);
-    tollsBtn.setOnCheckedChangeListener(tollBtnListener);
+    View windInputs = root.findViewById(R.id.route_wind_inputs);
+    SwitchCompat windEnabled = root.findViewById(R.id.route_wind_enabled);
+    windEnabled.setChecked(mWindEnabled);
+    windInputs.setVisibility(mWindEnabled ? View.VISIBLE : View.GONE);
+    windEnabled.setOnCheckedChangeListener((button, isChecked) -> {
+      mWindEnabled = isChecked;
+      windInputs.setVisibility(isChecked ? View.VISIBLE : View.GONE);
+    });
 
-    SwitchCompat motorwaysBtn = root.findViewById(R.id.avoid_motorways_btn);
-    motorwaysBtn.setChecked(RoutingOptions.hasOption(RoadType.Motorway));
-    CompoundButton.OnCheckedChangeListener motorwayBtnListener = new ToggleRoutingOptionListener(RoadType.Motorway);
-    motorwaysBtn.setOnCheckedChangeListener(motorwayBtnListener);
+    TextView windSpeedValue = root.findViewById(R.id.route_wind_speed_value);
+    Slider windSpeedSlider = root.findViewById(R.id.route_wind_speed_slider);
+    windSpeedSlider.setValueTo(mSettings.maxWindSpeedMps);
+    windSpeedSlider.setValue(mWindSpeedMps);
+    windSpeedValue.setText(formatWindSpeed(mWindSpeedMps));
+    windSpeedSlider.addOnChangeListener((slider, value, fromUser) -> {
+      mWindSpeedMps = Math.round(value);
+      windSpeedValue.setText(formatWindSpeed(mWindSpeedMps));
+    });
 
-    SwitchCompat ferriesBtn = root.findViewById(R.id.avoid_ferries_btn);
-    ferriesBtn.setChecked(RoutingOptions.hasOption(RoadType.Ferry));
-    CompoundButton.OnCheckedChangeListener ferryBtnListener = new ToggleRoutingOptionListener(RoadType.Ferry);
-    ferriesBtn.setOnCheckedChangeListener(ferryBtnListener);
+    TextView windDirectionValue = root.findViewById(R.id.route_wind_direction_value);
+    Slider windDirectionSlider = root.findViewById(R.id.route_wind_direction_slider);
+    windDirectionSlider.setValue(mWindDirectionDegrees);
+    windDirectionValue.setText(formatWindDirection(mWindDirectionDegrees));
+    windDirectionSlider.addOnChangeListener((slider, value, fromUser) -> {
+      mWindDirectionDegrees = Math.round(value);
+      windDirectionValue.setText(formatWindDirection(mWindDirectionDegrees));
+    });
+  }
 
-    SwitchCompat dirtyRoadsBtn = root.findViewById(R.id.avoid_dirty_roads_btn);
-    dirtyRoadsBtn.setChecked(RoutingOptions.hasOption(RoadType.Dirty));
-    CompoundButton.OnCheckedChangeListener dirtyBtnListener = new ToggleRoutingOptionListener(RoadType.Dirty);
-    dirtyRoadsBtn.setOnCheckedChangeListener(dirtyBtnListener);
+  private static void initRoadTypeSwitch(@NonNull View root, @IdRes int id, @NonNull RoadType roadType)
+  {
+    SwitchCompat button = root.findViewById(id);
+    button.setChecked(RoutingOptions.hasOption(roadType));
+    button.setOnCheckedChangeListener((buttonView, isChecked) -> {
+      if (isChecked)
+        RoutingOptions.addOption(roadType);
+      else
+        RoutingOptions.removeOption(roadType);
+    });
   }
 
   @NonNull
-  private String formatCruisingSpeed(int percentage)
+  private String formatCruisingSpeed(double speedKmph)
   {
-    double speedKmph = mRouteDefaultCruisingSpeedKmph * percentage / 100.0;
-    Pair<String, String> speedAndUnits = StringUtils.nativeFormatSpeedAndUnits(speedKmph / 3.6);
-    if (UnitLocale.getUnits() == UnitLocale.UNITS_FOOT)
-      speedKmph *= 0.621371192;
+    // The native speed formatter rounds to whole units, too coarse for the half a km/h steps of the
+    // pedestrian slider.
+    boolean imperial = UnitLocale.getUnits() == UnitLocale.UNITS_FOOT;
+    @StringRes
+    int units = imperial ? R.string.miles_per_hour : R.string.kilometers_per_hour;
     NumberFormat numberFormat = NumberFormat.getNumberInstance();
-    numberFormat.setMaximumFractionDigits(2);
-    return numberFormat.format(speedKmph) + "\u00a0" + speedAndUnits.second;
+    numberFormat.setMaximumFractionDigits(1);
+    return numberFormat.format(imperial ? speedKmph * KMPH_TO_MPH : speedKmph) + "\u00a0" + getString(units);
   }
 
   @NonNull
-  private static String formatWindSpeed(int speedMps)
+  private String formatWindSpeed(int speedMps)
   {
-    if (UnitLocale.getUnits() == UnitLocale.UNITS_METRIC)
-      return speedMps + "\u00a0m/s";
-    Pair<String, String> speedAndUnits = StringUtils.nativeFormatSpeedAndUnits(speedMps);
-    return speedAndUnits.first + "\u00a0" + speedAndUnits.second;
+    if (UnitLocale.getUnits() == UnitLocale.UNITS_FOOT)
+      return Math.round(speedMps * 3.6 * KMPH_TO_MPH) + "\u00a0" + getString(R.string.miles_per_hour);
+    return speedMps + "\u00a0" + getString(R.string.route_wind_speed_unit_mps);
   }
 
   @NonNull
   private String formatWindDirection(int directionDegrees)
   {
-    int labelIndex = directionDegrees / Router.WIND_DIRECTION_STEP_DEGREES;
+    int labelIndex = directionDegrees / RouteSpeedSettings.WIND_DIRECTION_STEP_DEGREES;
     return getString(WIND_DIRECTION_LABELS[labelIndex]) + " · " + directionDegrees + "°";
-  }
-
-  private static class ToggleRoutingOptionListener implements CompoundButton.OnCheckedChangeListener
-  {
-    @NonNull
-    private final RoadType mRoadType;
-
-    private ToggleRoutingOptionListener(@NonNull RoadType roadType)
-    {
-      mRoadType = roadType;
-    }
-
-    @Override
-    public void onCheckedChanged(CompoundButton buttonView, boolean isChecked)
-    {
-      if (isChecked)
-        RoutingOptions.addOption(mRoadType);
-      else
-        RoutingOptions.removeOption(mRoadType);
-    }
   }
 }

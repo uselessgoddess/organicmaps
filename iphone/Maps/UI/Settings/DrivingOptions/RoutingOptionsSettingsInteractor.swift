@@ -3,26 +3,14 @@ final class RoutingOptionsSettingsInteractor {
 
   private let routingOptionsProvider: () -> RoutingOptions
   private var state: RoutingOptionsSettingsState?
-  private var initialRouteSpeedPercentage = RoutingOptions.defaultRouteSpeedPercentage
-  private var initialBicycleWindEnabled = false
-  private var initialBicycleWindSpeedMpS = RoutingOptions.defaultBicycleWindSpeedMpS
-  private var initialBicycleWindDirectionDegrees = 0
 
   init(routingOptionsProvider: @escaping () -> RoutingOptions = RoutingOptions.init) {
     self.routingOptionsProvider = routingOptionsProvider
   }
 
   func loadSettings() {
-    let options = routingOptionsProvider()
-    initialRouteSpeedPercentage = options.routeSpeedPercentage
-    initialBicycleWindEnabled = options.bicycleWindEnabled
-    initialBicycleWindSpeedMpS = options.bicycleWindSpeedMpS
-    initialBicycleWindDirectionDegrees = options.bicycleWindDirectionDegrees
-    let state = RoutingOptionsSettingsState(options: options,
-                                            routeSpeedPercentage: options.routeSpeedPercentage,
-                                            bicycleWindEnabled: options.bicycleWindEnabled,
-                                            bicycleWindSpeedMpS: options.bicycleWindSpeedMpS,
-                                            bicycleWindDirectionDegrees: options.bicycleWindDirectionDegrees)
+    let state = RoutingOptionsSettingsState(options: routingOptionsProvider(),
+                                            speedSettings: RouteSpeedSettings.current())
     self.state = state
     present(state, animatingDifferences: false)
   }
@@ -34,60 +22,50 @@ final class RoutingOptionsSettingsInteractor {
     present(state, animatingDifferences: false)
   }
 
-  private func setRouteSpeed(_ value: Float) {
-    guard var state, state.options.routeSpeedSettingSupported else { return }
-    let step = RoutingOptions.routeSpeedPercentageStep
-    let percentage = Int((Double(value) / Double(step)).rounded()) * step
-    state.routeSpeedPercentage = min(max(percentage, RoutingOptions.minimumRouteSpeedPercentage),
-                                     RoutingOptions.maximumRouteSpeedPercentage)
+  private func setCruisingSpeed(_ value: Float) {
+    guard var state, let speedSettings = state.speedSettings else { return }
+    state.cruisingSpeedKMpH = Self.snap(value, step: speedSettings.speedStepKMpH,
+                                        minimum: speedSettings.minimumSpeedKMpH,
+                                        maximum: speedSettings.maximumSpeedKMpH)
     self.state = state
     presenter?.present(state, reconfiguredItems: [.routeSpeed], animatingDifferences: false)
   }
 
-  private func setBicycleWindEnabled(_ enabled: Bool) {
-    guard var state, state.options.bicycleWindSettingSupported else { return }
-    state.bicycleWindEnabled = enabled
+  private func setWindEnabled(_ enabled: Bool) {
+    guard var state else { return }
+    state.windEnabled = enabled
     self.state = state
     present(state)
   }
 
-  private func setBicycleWindSpeed(_ value: Float) {
-    guard var state, state.options.bicycleWindSettingSupported else { return }
-    let step = RoutingOptions.bicycleWindSpeedStepMpS
-    let speed = Int((Double(value) / Double(step)).rounded()) * step
-    state.bicycleWindSpeedMpS = min(max(speed, RoutingOptions.minimumBicycleWindSpeedMpS),
-                                    RoutingOptions.maximumBicycleWindSpeedMpS)
+  private func setWindSpeed(_ value: Float) {
+    guard var state, let speedSettings = state.speedSettings else { return }
+    state.windSpeedMpS = Int(Self.snap(value, step: 1, minimum: 1, maximum: Double(speedSettings.maximumWindSpeedMpS)))
     self.state = state
     presenter?.present(state, reconfiguredItems: [.windSpeed], animatingDifferences: false)
   }
 
-  private func setBicycleWindDirection(_ value: Float) {
-    guard var state, state.options.bicycleWindSettingSupported else { return }
-    let step = RoutingOptions.bicycleWindDirectionStepDegrees
-    let direction = Int((Double(value) / Double(step)).rounded()) * step
-    state.bicycleWindDirectionDegrees = min(max(direction, 0), 315)
+  private func setWindDirection(_ value: Float) {
+    guard var state else { return }
+    let step = Double(RouteSpeedSettings.windDirectionStepDegrees)
+    state.windDirectionDegrees = Int(Self.snap(value, step: step, minimum: 0, maximum: 360 - step))
     self.state = state
     presenter?.present(state, reconfiguredItems: [.windDirection], animatingDifferences: false)
   }
 
-  private func saveRouteSettings() {
-    guard let state,
-          state.options.routeSpeedSettingSupported,
-          state.routeSpeedPercentage != initialRouteSpeedPercentage ||
-          state.bicycleWindEnabled != initialBicycleWindEnabled ||
-          state.bicycleWindSpeedMpS != initialBicycleWindSpeedMpS ||
-          state.bicycleWindDirectionDegrees != initialBicycleWindDirectionDegrees else { return }
+  /// Sliders are continuous, the settings behind them are not.
+  private static func snap(_ value: Float, step: Double, minimum: Double, maximum: Double) -> Double {
+    min(max((Double(value) / step).rounded() * step, minimum), maximum)
+  }
+
+  private func saveSpeedSettings() {
+    guard let state, let speedSettings = state.speedSettings, state.isSpeedChanged else { return }
     // Replacing the core router resets the active routing session, so remember its state first.
     let shouldRebuild = MWMRouter.isRoutingActive()
-    state.options.routeSpeedPercentage = state.routeSpeedPercentage
-    state.options.bicycleWindEnabled = state.bicycleWindEnabled
-    state.options.bicycleWindSpeedMpS = state.bicycleWindSpeedMpS
-    state.options.bicycleWindDirectionDegrees = state.bicycleWindDirectionDegrees
-    state.options.save()
-    initialRouteSpeedPercentage = state.routeSpeedPercentage
-    initialBicycleWindEnabled = state.bicycleWindEnabled
-    initialBicycleWindSpeedMpS = state.bicycleWindSpeedMpS
-    initialBicycleWindDirectionDegrees = state.bicycleWindDirectionDegrees
+    speedSettings.cruisingSpeedKMpH = state.cruisingSpeedKMpH
+    speedSettings.windSpeedMpS = state.windSpeedToApplyMpS
+    speedSettings.windDirectionDegrees = state.windDirectionDegrees
+    speedSettings.save()
     if shouldRebuild {
       MWMRouter.rebuild(withBestRouter: false)
     }
@@ -107,17 +85,17 @@ extension RoutingOptionsSettingsInteractor: SettingsViewControllerInteractor {
     case .didLoad:
       loadSettings()
     case .willDisappear:
-      saveRouteSettings()
+      saveSpeedSettings()
     case .didChangeSwitch(.windEnabled, isOn: let isOn):
-      setBicycleWindEnabled(isOn)
+      setWindEnabled(isOn)
     case .didChangeSwitch(let item, isOn: let isOn):
       set(item, enabled: isOn)
     case .didChangeSlider(.routeSpeed, value: let value):
-      setRouteSpeed(value)
+      setCruisingSpeed(value)
     case .didChangeSlider(.windSpeed, value: let value):
-      setBicycleWindSpeed(value)
+      setWindSpeed(value)
     case .didChangeSlider(.windDirection, value: let value):
-      setBicycleWindDirection(value)
+      setWindDirection(value)
     default:
       break
     }

@@ -682,6 +682,7 @@
     <string name="route_speed_description">Ваша звичайна швидкість на рівному асфальті. Рельєф і дорожні умови, як і раніше, враховуються; маршрут не змінюється.</string>
     <string name="route_wind_enabled">Враховувати вітер</string>
     <string name="route_wind_speed">Швидкість вітру</string>
+    <string name="route_wind_speed_unit_mps">м/с</string>
     <string name="route_wind_direction">Вітер дме з</string>
     <string name="route_wind_description">Коригує розрахунковий час велосипеда за складовою вітру вздовж кожної ділянки. Напрямок вказує, звідки дме вітер.</string>
     <string name="route_wind_direction_n">Пн</string>

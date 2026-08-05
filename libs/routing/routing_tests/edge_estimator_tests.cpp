@@ -82,64 +82,108 @@ UNIT_TEST(ClimbPenalty_HighAboveSeaLevel)
   }
 }
 
-void TestRouteSpeedFactor(VehicleType vehicleType)
+// A rider or walker who keeps |factor| times the default cruising speed needs |factor| times less
+// time, but the route itself (Purpose::Weight) and the fixed penalties must not change at all.
+void TestCruisingSpeed(VehicleType vehicleType)
 {
-  auto const estimator = EdgeEstimator::Create(vehicleType, 5.0, SpeedKMpH(5.0), nullptr, nullptr, nullptr);
+  double const defaultSpeedKMpH = GetCruisingSpeedRange(vehicleType).m_default;
+  auto const estimator =
+      EdgeEstimator::Create(vehicleType, defaultSpeedKMpH, SpeedKMpH(defaultSpeedKMpH), nullptr, nullptr, nullptr);
   ms::LatLon const from(0.0, 0.0);
   ms::LatLon const to(0.0, 0.001);
 
   double const weight = estimator->CalcOffroad(from, to, EdgeEstimator::Purpose::Weight);
   double const eta = estimator->CalcOffroad(from, to, EdgeEstimator::Purpose::ETA);
   double const ferryEta = estimator->GetFerryLandingPenalty(EdgeEstimator::Purpose::ETA);
-  RoadGeometry const road(false /* oneWay */, Maxspeed(measurement_utils::Units::Metric, 5, kInvalidSpeed),
+  RoadGeometry const road(false /* oneWay */,
+                          Maxspeed(measurement_utils::Units::Metric, defaultSpeedKMpH, kInvalidSpeed),
                           {{0.0, 0.0}, {0.0, 0.001}});
   Segment const segment(kFakeNumMwmId, 0 /* featureId */, 0 /* segmentIdx */, true /* forward */);
   double const segmentWeight = estimator->CalcSegmentWeight(segment, road, EdgeEstimator::Purpose::Weight);
   double const segmentEta = estimator->CalcSegmentWeight(segment, road, EdgeEstimator::Purpose::ETA);
 
-  estimator->SetRouteSpeedFactor(1.25);
+  double const factor = 1.25;
+  estimator->SetRouteSpeedSettings(vehicleType, {defaultSpeedKMpH * factor});
 
   TEST_ALMOST_EQUAL_ABS(estimator->CalcOffroad(from, to, EdgeEstimator::Purpose::Weight), weight, kAccuracyEps, ());
-  TEST_ALMOST_EQUAL_ABS(estimator->CalcOffroad(from, to, EdgeEstimator::Purpose::ETA), eta / 1.25, kAccuracyEps, ());
+  TEST_ALMOST_EQUAL_ABS(estimator->CalcOffroad(from, to, EdgeEstimator::Purpose::ETA), eta / factor, kAccuracyEps, ());
   TEST_ALMOST_EQUAL_ABS(estimator->GetFerryLandingPenalty(EdgeEstimator::Purpose::ETA), ferryEta, kAccuracyEps, ());
   TEST_ALMOST_EQUAL_ABS(estimator->CalcSegmentWeight(segment, road, EdgeEstimator::Purpose::Weight), segmentWeight,
                         kAccuracyEps, ());
-  TEST_ALMOST_EQUAL_ABS(estimator->CalcSegmentWeight(segment, road, EdgeEstimator::Purpose::ETA), segmentEta / 1.25,
+  TEST_ALMOST_EQUAL_ABS(estimator->CalcSegmentWeight(segment, road, EdgeEstimator::Purpose::ETA), segmentEta / factor,
                         kAccuracyEps, ());
 }
 
-UNIT_TEST(RouteSpeedFactor_AffectsEtaOnly)
+UNIT_TEST(CruisingSpeed_AffectsEtaOnly)
 {
-  TestRouteSpeedFactor(VehicleType::Pedestrian);
-  TestRouteSpeedFactor(VehicleType::Bicycle);
+  TestCruisingSpeed(VehicleType::Pedestrian);
+  TestCruisingSpeed(VehicleType::Bicycle);
 }
 
+// A cyclist holds a roughly constant power, so a headwind costs far less speed than the naive
+// "ground speed = still-air speed - headwind" model claims, and a tailwind gains far less.
 UNIT_TEST(BicycleWind_AffectsEtaBySegmentDirection)
 {
-  auto const estimator = EdgeEstimator::Create(VehicleType::Bicycle, 20.0, SpeedKMpH(20.0), nullptr, nullptr, nullptr);
-  RoadGeometry const eastboundRoad(false /* oneWay */, Maxspeed(measurement_utils::Units::Metric, 20, kInvalidSpeed),
+  double const cruisingSpeedKMpH = 20.0;
+  double const windSpeedMpS = 5.0;
+  auto const estimator = EdgeEstimator::Create(VehicleType::Bicycle, cruisingSpeedKMpH, SpeedKMpH(cruisingSpeedKMpH),
+                                               nullptr, nullptr, nullptr);
+  RoadGeometry const eastboundRoad(false /* oneWay */,
+                                   Maxspeed(measurement_utils::Units::Metric, cruisingSpeedKMpH, kInvalidSpeed),
                                    {{0.0, 0.0}, {0.001, 0.0}});
   Segment const segment(kFakeNumMwmId, 0 /* featureId */, 0 /* segmentIdx */, true /* forward */);
+  Segment const reverseSegment(kFakeNumMwmId, 0 /* featureId */, 0 /* segmentIdx */, false /* forward */);
   double const weight = estimator->CalcSegmentWeight(segment, eastboundRoad, EdgeEstimator::Purpose::Weight);
   double const eta = estimator->CalcSegmentWeight(segment, eastboundRoad, EdgeEstimator::Purpose::ETA);
 
-  estimator->SetWind(measurement_utils::KmphToMps(5.0), 270.0 /* from west */);
+  auto const etaWithWind = [&](Segment const & s, int windDirectionDegrees)
+  {
+    estimator->SetRouteSpeedSettings(VehicleType::Bicycle,
+                                     {cruisingSpeedKMpH, static_cast<int>(windSpeedMpS), windDirectionDegrees});
+    return estimator->CalcSegmentWeight(s, eastboundRoad, EdgeEstimator::Purpose::ETA);
+  };
+
+  // The wind must not change which road the router picks.
   TEST_ALMOST_EQUAL_ABS(estimator->CalcSegmentWeight(segment, eastboundRoad, EdgeEstimator::Purpose::Weight), weight,
                         kAccuracyEps, ());
-  TEST_ALMOST_EQUAL_ABS(estimator->CalcSegmentWeight(segment, eastboundRoad, EdgeEstimator::Purpose::ETA), eta / 1.25,
-                        kAccuracyEps, ());
 
-  estimator->SetWind(measurement_utils::KmphToMps(5.0), 90.0 /* from east */);
-  TEST_ALMOST_EQUAL_ABS(estimator->CalcSegmentWeight(segment, eastboundRoad, EdgeEstimator::Purpose::ETA), eta / 0.75,
-                        kAccuracyEps, ());
+  // A crosswind neither helps nor hinders.
+  TEST_ALMOST_EQUAL_ABS(etaWithWind(segment, 0 /* from north */), eta, kAccuracyEps, ());
+  TEST_ALMOST_EQUAL_ABS(etaWithWind(segment, 180 /* from south */), eta, kAccuracyEps, ());
 
-  estimator->SetWind(measurement_utils::KmphToMps(5.0), 0.0 /* from north */);
+  // Riding east, a wind from the east is a headwind and a wind from the west is a tailwind; riding
+  // the same road westwards swaps the two.
+  double const headwindEta = etaWithWind(segment, 90 /* from east */);
+  double const tailwindEta = etaWithWind(segment, 270 /* from west */);
+  TEST_ALMOST_EQUAL_ABS(etaWithWind(reverseSegment, 270 /* from west */), headwindEta, kAccuracyEps, ());
+  TEST_ALMOST_EQUAL_ABS(etaWithWind(reverseSegment, 90 /* from east */), tailwindEta, kAccuracyEps, ());
+  TEST_GREATER(headwindEta, eta, ());
+  TEST_LESS(tailwindEta, eta, ());
+
+  // The naive model would drop the ground speed to a quarter of the still-air speed here (5 m/s of
+  // wind against 5.56 m/s of riding), quadrupling the time. Holding the power instead costs a much
+  // more believable ~1.8x, and the tailwind gains less than it takes away.
+  double const stillSpeedMpS = measurement_utils::KmphToMps(cruisingSpeedKMpH);
+  TEST_LESS(headwindEta, eta * stillSpeedMpS / (stillSpeedMpS - windSpeedMpS), ());
+  TEST_LESS(headwindEta, 2.0 * eta, ());
+  TEST_GREATER(tailwindEta, eta * stillSpeedMpS / (stillSpeedMpS + windSpeedMpS), ());
+  TEST_GREATER(headwindEta - eta, eta - tailwindEta, ());
+}
+
+// The wind is a bicycle setting: pedestrians walk slowly enough for it not to matter.
+UNIT_TEST(Wind_IgnoredForPedestrian)
+{
+  double const cruisingSpeedKMpH = GetCruisingSpeedRange(VehicleType::Pedestrian).m_default;
+  auto const estimator = EdgeEstimator::Create(VehicleType::Pedestrian, cruisingSpeedKMpH, SpeedKMpH(cruisingSpeedKMpH),
+                                               nullptr, nullptr, nullptr);
+  RoadGeometry const eastboundRoad(false /* oneWay */,
+                                   Maxspeed(measurement_utils::Units::Metric, cruisingSpeedKMpH, kInvalidSpeed),
+                                   {{0.0, 0.0}, {0.001, 0.0}});
+  Segment const segment(kFakeNumMwmId, 0 /* featureId */, 0 /* segmentIdx */, true /* forward */);
+  double const eta = estimator->CalcSegmentWeight(segment, eastboundRoad, EdgeEstimator::Purpose::ETA);
+
+  estimator->SetRouteSpeedSettings(VehicleType::Pedestrian, {cruisingSpeedKMpH, 5 /* m/s */, 90 /* from east */});
   TEST_ALMOST_EQUAL_ABS(estimator->CalcSegmentWeight(segment, eastboundRoad, EdgeEstimator::Purpose::ETA), eta,
                         kAccuracyEps, ());
-
-  Segment const reverseSegment(kFakeNumMwmId, 0 /* featureId */, 0 /* segmentIdx */, false /* forward */);
-  estimator->SetWind(measurement_utils::KmphToMps(5.0), 270.0 /* from west */);
-  TEST_ALMOST_EQUAL_ABS(estimator->CalcSegmentWeight(reverseSegment, eastboundRoad, EdgeEstimator::Purpose::ETA),
-                        eta / 0.75, kAccuracyEps, ());
 }
 }  // namespace

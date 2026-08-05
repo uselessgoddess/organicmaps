@@ -306,8 +306,8 @@ IndexRouter::IndexRouter(VehicleType vehicleType, bool loadAltitudes,
                          CountryParentNameGetterFn const & countryParentNameGetterFn,
                          TCountryFileFn const & countryFileFn, CountryRectFn const & countryRectFn,
                          std::shared_ptr<NumMwmIds> numMwmIds, std::shared_ptr<m4::Tree<NumMwmId>> numMwmTree,
-                         traffic::TrafficCache const & trafficCache, DataSource & dataSource, double routeSpeedFactor,
-                         double windSpeedMpS, double windFromDirectionDegrees)
+                         traffic::TrafficCache const & trafficCache, DataSource & dataSource,
+                         RouteSpeedSettings const & speedSettings)
   : m_vehicleType(vehicleType)
   , m_loadAltitudes(loadAltitudes)
   , m_name("astar-bidirectional-" + ToString(m_vehicleType))
@@ -334,8 +334,7 @@ IndexRouter::IndexRouter(VehicleType vehicleType, bool loadAltitudes,
   CHECK(m_numMwmTree, ());
   CHECK(m_estimator, ());
   CHECK(m_directionsEngine, ());
-  m_estimator->SetRouteSpeedFactor(routeSpeedFactor);
-  m_estimator->SetWind(windSpeedMpS, windFromDirectionDegrees);
+  m_estimator->SetRouteSpeedSettings(m_vehicleType, speedSettings);
 }
 
 std::unique_ptr<WorldGraph> IndexRouter::MakeSingleMwmWorldGraph()

@@ -27373,6 +27373,12 @@ en = Wind speed
 ru = Скорость ветра
 uk = Швидкість вітру
 
+[route_wind_speed_unit_mps]
+tags = android-app,apple-maps
+en = m/s
+ru = м/с
+uk = м/с
+
 [route_wind_direction]
 tags = android-app,apple-maps
 en = Wind from

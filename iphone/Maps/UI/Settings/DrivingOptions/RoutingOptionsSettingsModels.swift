@@ -70,10 +70,31 @@ extension RoutingOption {
 
 struct RoutingOptionsSettingsState {
   let options: RoutingOptions
-  var routeSpeedPercentage: Int
-  var bicycleWindEnabled: Bool
-  var bicycleWindSpeedMpS: Int
-  var bicycleWindDirectionDegrees: Int
+  /// The settings the current router was built with, or nil if it has no personal speed (car, transit).
+  let speedSettings: RouteSpeedSettings?
+  var cruisingSpeedKMpH: Double
+  var windEnabled: Bool
+  var windSpeedMpS: Int
+  var windDirectionDegrees: Int
+
+  init(options: RoutingOptions, speedSettings: RouteSpeedSettings?) {
+    self.options = options
+    self.speedSettings = speedSettings
+    let savedWindSpeedMpS = speedSettings?.windSpeedMpS ?? 0
+    cruisingSpeedKMpH = speedSettings?.cruisingSpeedKMpH ?? 0
+    windEnabled = savedWindSpeedMpS > 0
+    windSpeedMpS = windEnabled ? savedWindSpeedMpS : RouteSpeedSettings.defaultWindSpeedMpS
+    windDirectionDegrees = speedSettings?.windDirectionDegrees ?? 0
+  }
+
+  /// The wind to route with, 0 m/s meaning the user asked not to take it into account.
+  var windSpeedToApplyMpS: Int { windEnabled ? windSpeedMpS : 0 }
+
+  var isSpeedChanged: Bool {
+    guard let speedSettings else { return false }
+    return cruisingSpeedKMpH != speedSettings.cruisingSpeedKMpH || windSpeedToApplyMpS != speedSettings.windSpeedMpS ||
+           (windEnabled && windDirectionDegrees != speedSettings.windDirectionDegrees)
+  }
 }
 
 typealias RoutingOptionsSettingsViewController = SettingsViewController<RoutingOptionsSettingsSection, RoutingOption>

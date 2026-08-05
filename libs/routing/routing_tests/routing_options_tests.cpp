@@ -27,22 +27,19 @@ class RouteSpeedSettingsTests
 {
 public:
   RouteSpeedSettingsTests()
-    : m_savedPedestrian(RouteSpeedSettings::Load(VehicleType::Pedestrian))
-    , m_savedBicycle(RouteSpeedSettings::Load(VehicleType::Bicycle))
-    , m_savedWind(RouteSpeedSettings::LoadBicycleWind())
+    : m_savedPedestrian(LoadRouteSpeedSettings(VehicleType::Pedestrian))
+    , m_savedBicycle(LoadRouteSpeedSettings(VehicleType::Bicycle))
   {}
 
   ~RouteSpeedSettingsTests()
   {
-    RouteSpeedSettings::Save(VehicleType::Pedestrian, m_savedPedestrian);
-    RouteSpeedSettings::Save(VehicleType::Bicycle, m_savedBicycle);
-    RouteSpeedSettings::SaveBicycleWind(m_savedWind);
+    SaveRouteSpeedSettings(VehicleType::Pedestrian, m_savedPedestrian);
+    SaveRouteSpeedSettings(VehicleType::Bicycle, m_savedBicycle);
   }
 
 private:
-  int const m_savedPedestrian;
-  int const m_savedBicycle;
-  BicycleWindSettings const m_savedWind;
+  RouteSpeedSettings const m_savedPedestrian;
+  RouteSpeedSettings const m_savedBicycle;
 };
 
 RoutingOptions CreateOptions(std::vector<RoutingOptions::Road> const & include)
@@ -99,32 +96,41 @@ UNIT_CLASS_TEST(RoutingOptionsTests, GetSetTest)
   TEST_EQUAL(options.GetOptions(), fromSettings.GetOptions(), ());
 }
 
-UNIT_CLASS_TEST(RouteSpeedSettingsTests, SavesEachModeSeparately)
+UNIT_CLASS_TEST(RouteSpeedSettingsTests, SavesEachVehicleSeparately)
 {
-  RouteSpeedSettings::Save(VehicleType::Pedestrian, 115);
-  RouteSpeedSettings::Save(VehicleType::Bicycle, 175);
+  SaveRouteSpeedSettings(VehicleType::Pedestrian, {6.5 /* km/h */});
+  SaveRouteSpeedSettings(VehicleType::Bicycle, {28.0 /* km/h */, 8 /* m/s */, 225 /* from south-west */});
 
-  TEST_EQUAL(RouteSpeedSettings::Load(VehicleType::Pedestrian), 115, ());
-  TEST_EQUAL(RouteSpeedSettings::Load(VehicleType::Bicycle), 175, ());
-  TEST_ALMOST_EQUAL_ABS(RouteSpeedSettings::GetFactor(VehicleType::Pedestrian), 1.15, 1e-9, ());
-  TEST_ALMOST_EQUAL_ABS(RouteSpeedSettings::GetFactor(VehicleType::Bicycle), 1.75, 1e-9, ());
+  auto const pedestrian = LoadRouteSpeedSettings(VehicleType::Pedestrian);
+  TEST_ALMOST_EQUAL_ABS(pedestrian.m_cruisingSpeedKMpH, 6.5, 1e-9, ());
+  TEST_EQUAL(pedestrian.m_windSpeedMpS, 0, ("A pedestrian has no wind setting"));
+
+  auto const bicycle = LoadRouteSpeedSettings(VehicleType::Bicycle);
+  TEST_ALMOST_EQUAL_ABS(bicycle.m_cruisingSpeedKMpH, 28.0, 1e-9, ());
+  TEST_EQUAL(bicycle.m_windSpeedMpS, 8, ());
+  TEST_EQUAL(bicycle.m_windDirectionDegrees, 225, ());
 }
 
-UNIT_TEST(RouteSpeedSettings_ConvertsCruisingSpeed)
+// Out-of-range values, e.g. a settings file written by a version whose sliders had a wider range,
+// must not produce an absurd ETA.
+UNIT_CLASS_TEST(RouteSpeedSettingsTests, ClampsOutOfRangeValues)
 {
-  TEST_ALMOST_EQUAL_ABS(RouteSpeedSettings::GetDefaultCruisingSpeedKMpH(VehicleType::Pedestrian), 5.0, 1e-9, ());
-  TEST_ALMOST_EQUAL_ABS(RouteSpeedSettings::GetDefaultCruisingSpeedKMpH(VehicleType::Bicycle), 20.0, 1e-9, ());
-  TEST_ALMOST_EQUAL_ABS(RouteSpeedSettings::PercentageToCruisingSpeedKMpH(VehicleType::Pedestrian, 125), 6.25, 1e-9,
-                        ());
-  TEST_ALMOST_EQUAL_ABS(RouteSpeedSettings::PercentageToCruisingSpeedKMpH(VehicleType::Bicycle, 150), 30.0, 1e-9, ());
+  auto const range = GetCruisingSpeedRange(VehicleType::Bicycle);
+  SaveRouteSpeedSettings(VehicleType::Bicycle, {range.m_max + 100.0, kMaxWindSpeedMpS + 10, -45});
+
+  auto const bicycle = LoadRouteSpeedSettings(VehicleType::Bicycle);
+  TEST_ALMOST_EQUAL_ABS(bicycle.m_cruisingSpeedKMpH, range.m_max, 1e-9, ());
+  TEST_EQUAL(bicycle.m_windSpeedMpS, kMaxWindSpeedMpS, ());
+  TEST_EQUAL(bicycle.m_windDirectionDegrees, 0, ());
 }
 
-UNIT_CLASS_TEST(RouteSpeedSettingsTests, SavesBicycleWind)
+// Cars keep the routing profile speeds: loading returns "no personal speed" and saving does nothing.
+UNIT_CLASS_TEST(RouteSpeedSettingsTests, IgnoresUnsupportedVehicles)
 {
-  RouteSpeedSettings::SaveBicycleWind({true, 8, 225});
-  auto const wind = RouteSpeedSettings::LoadBicycleWind();
-  TEST(wind.m_enabled, ());
-  TEST_EQUAL(wind.m_speedMpS, 8, ());
-  TEST_EQUAL(wind.m_directionDegrees, 225, ());
+  TEST(!IsRouteSpeedSupported(VehicleType::Car), ());
+  TEST(!IsWindSupported(VehicleType::Pedestrian), ());
+
+  SaveRouteSpeedSettings(VehicleType::Car, {30.0 /* km/h */});
+  TEST_ALMOST_EQUAL_ABS(LoadRouteSpeedSettings(VehicleType::Car).m_cruisingSpeedKMpH, 0.0, 1e-9, ());
 }
 }  // namespace

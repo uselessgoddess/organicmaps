@@ -719,6 +719,7 @@
 "route_speed_description" = "Your usual speed on flat pavement. Terrain and road conditions are still considered; route choice is unchanged.";
 "route_wind_enabled" = "Consider wind";
 "route_wind_speed" = "Wind speed";
+"route_wind_speed_unit_mps" = "m/s";
 "route_wind_direction" = "Wind from";
 "route_wind_description" = "Adjusts bicycle ETA using the wind component along each route segment. Direction is where the wind comes from.";
 "route_wind_direction_n" = "N";
