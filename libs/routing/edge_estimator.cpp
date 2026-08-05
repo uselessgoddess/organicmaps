@@ -250,6 +250,17 @@ double EdgeEstimator::GetMaxWeightSpeedMpS() const
   return m_maxWeightSpeedMpS;
 }
 
+void EdgeEstimator::SetRouteSpeedFactor(double factor)
+{
+  CHECK_GREATER(factor, 0.0, ());
+  m_routeSpeedFactor = factor;
+}
+
+double EdgeEstimator::ApplyRouteSpeedFactor(double timeSec, Purpose purpose) const
+{
+  return purpose == Purpose::ETA ? timeSec / m_routeSpeedFactor : timeSec;
+}
+
 double EdgeEstimator::CalcOffroad(ms::LatLon const & from, ms::LatLon const & to, Purpose purpose) const
 {
   auto const offroadSpeedKMpH = purpose == Purpose::Weight ? m_offroadSpeedKMpH.m_weight : m_offroadSpeedKMpH.m_eta;
@@ -257,7 +268,7 @@ double EdgeEstimator::CalcOffroad(ms::LatLon const & from, ms::LatLon const & to
     return 0.0;
 
   double const time = TimeBetweenSec(from, to, KmphToMps(offroadSpeedKMpH));
-  return purpose == Purpose::Weight ? time * m_transitWalkWeightFactor : time;
+  return ApplyRouteSpeedFactor(purpose == Purpose::Weight ? time * m_transitWalkWeightFactor : time, purpose);
 }
 
 // PedestrianEstimator -----------------------------------------------------------------------------
@@ -291,7 +302,8 @@ public:
     { return speedMpS / GetPedestrianClimbPenalty(purpose, tangent, altitude); });
     // Bias the transit alternative away from walking (see SetTransitAltFactors). No-op (factor 1.0)
     // for standalone pedestrian routing and for the primary transit route.
-    return purpose == Purpose::Weight ? weight * GetTransitWalkWeightFactor() : weight;
+    double const adjustedWeight = purpose == Purpose::Weight ? weight * GetTransitWalkWeightFactor() : weight;
+    return IsTransit(road.GetHighwayType()) ? adjustedWeight : ApplyRouteSpeedFactor(adjustedWeight, purpose);
   }
 };
 
@@ -321,8 +333,8 @@ public:
     if (purpose == Purpose::Weight && GetStrategy() == Strategy::Shortest)
       return road.GetDistance(segment.GetSegmentIdx()) / GetMaxWeightSpeedMpS();
 
-    return CalcClimbSegment(purpose, segment, road,
-                            [purpose, this](double speedMpS, double tangent, geometry::Altitude altitude)
+    double const time = CalcClimbSegment(purpose, segment, road,
+                                         [purpose, this](double speedMpS, double tangent, geometry::Altitude altitude)
     {
       auto const factor = GetBicycleClimbPenalty(purpose, tangent, altitude);
       ASSERT_GREATER(factor, 0.0, ());
@@ -351,6 +363,7 @@ public:
 
       return std::min(speedMpS, GetMaxWeightSpeedMpS());
     });
+    return IsTransit(road.GetHighwayType()) ? time : ApplyRouteSpeedFactor(time, purpose);
   }
 };
 

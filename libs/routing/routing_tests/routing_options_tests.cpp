@@ -1,5 +1,6 @@
 #include "testing/testing.hpp"
 
+#include "routing/route_speed_settings.hpp"
 #include "routing/routing_options.hpp"
 
 #include <cstdint>
@@ -20,6 +21,25 @@ public:
 
 private:
   RoutingOptions m_savedOptions;
+};
+
+class RouteSpeedSettingsTests
+{
+public:
+  RouteSpeedSettingsTests()
+    : m_savedPedestrian(RouteSpeedSettings::Load(VehicleType::Pedestrian))
+    , m_savedBicycle(RouteSpeedSettings::Load(VehicleType::Bicycle))
+  {}
+
+  ~RouteSpeedSettingsTests()
+  {
+    RouteSpeedSettings::Save(VehicleType::Pedestrian, m_savedPedestrian);
+    RouteSpeedSettings::Save(VehicleType::Bicycle, m_savedBicycle);
+  }
+
+private:
+  int const m_savedPedestrian;
+  int const m_savedBicycle;
 };
 
 RoutingOptions CreateOptions(std::vector<RoutingOptions::Road> const & include)
@@ -74,5 +94,16 @@ UNIT_CLASS_TEST(RoutingOptionsTests, GetSetTest)
   RoutingOptions fromSettings = RoutingOptions::LoadCarOptionsFromSettings();
 
   TEST_EQUAL(options.GetOptions(), fromSettings.GetOptions(), ());
+}
+
+UNIT_CLASS_TEST(RouteSpeedSettingsTests, SavesEachModeSeparately)
+{
+  RouteSpeedSettings::Save(VehicleType::Pedestrian, 115);
+  RouteSpeedSettings::Save(VehicleType::Bicycle, 175);
+
+  TEST_EQUAL(RouteSpeedSettings::Load(VehicleType::Pedestrian), 115, ());
+  TEST_EQUAL(RouteSpeedSettings::Load(VehicleType::Bicycle), 175, ());
+  TEST_ALMOST_EQUAL_ABS(RouteSpeedSettings::GetFactor(VehicleType::Pedestrian), 1.15, 1e-9, ());
+  TEST_ALMOST_EQUAL_ABS(RouteSpeedSettings::GetFactor(VehicleType::Bicycle), 1.75, 1e-9, ());
 }
 }  // namespace

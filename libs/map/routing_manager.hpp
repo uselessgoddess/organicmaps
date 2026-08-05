@@ -120,6 +120,9 @@ public:
   routing::RoutingSession & RoutingSession() { return m_routingSession; }
   void SetRouter(routing::RouterType type);
   routing::RouterType GetRouter() const { return m_currentRouterType; }
+  bool IsRouteSpeedSettingSupported() const;
+  int GetRouteSpeedPercentage() const;
+  void SetRouteSpeedPercentage(int percentage);
   bool IsRoutingActive() const { return m_routingSession.IsActive(); }
   bool IsRouteBuilt() const { return m_routingSession.IsBuilt(); }
   bool IsRouteBuilding() const { return m_routingSession.IsBuilding(); }

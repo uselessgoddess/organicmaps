@@ -1,8 +1,13 @@
 #include "testing/testing.hpp"
 
 #include "routing/edge_estimator.hpp"
+#include "routing/geometry.hpp"
+
+#include "routing_common/maxspeed_conversion.hpp"
 
 #include "geometry/point_with_altitude.hpp"
+
+#include "platform/measurement_utils.hpp"
 
 #include <cmath>
 
@@ -75,5 +80,37 @@ UNIT_TEST(ClimbPenalty_HighAboveSeaLevel)
     TEST_GREATER_OR_EQUAL(penalty2500Bicyclce, 6.0, ());
     TEST_ALMOST_EQUAL_ABS(GetCarClimbPenalty(purpose, kTan, 2500), 1.0, kAccuracyEps, ());
   }
+}
+
+void TestRouteSpeedFactor(VehicleType vehicleType)
+{
+  auto const estimator = EdgeEstimator::Create(vehicleType, 5.0, SpeedKMpH(5.0), nullptr, nullptr, nullptr);
+  ms::LatLon const from(0.0, 0.0);
+  ms::LatLon const to(0.0, 0.001);
+
+  double const weight = estimator->CalcOffroad(from, to, EdgeEstimator::Purpose::Weight);
+  double const eta = estimator->CalcOffroad(from, to, EdgeEstimator::Purpose::ETA);
+  double const ferryEta = estimator->GetFerryLandingPenalty(EdgeEstimator::Purpose::ETA);
+  RoadGeometry const road(false /* oneWay */, Maxspeed(measurement_utils::Units::Metric, 5, kInvalidSpeed),
+                          {{0.0, 0.0}, {0.0, 0.001}});
+  Segment const segment(kFakeNumMwmId, 0 /* featureId */, 0 /* segmentIdx */, true /* forward */);
+  double const segmentWeight = estimator->CalcSegmentWeight(segment, road, EdgeEstimator::Purpose::Weight);
+  double const segmentEta = estimator->CalcSegmentWeight(segment, road, EdgeEstimator::Purpose::ETA);
+
+  estimator->SetRouteSpeedFactor(1.25);
+
+  TEST_ALMOST_EQUAL_ABS(estimator->CalcOffroad(from, to, EdgeEstimator::Purpose::Weight), weight, kAccuracyEps, ());
+  TEST_ALMOST_EQUAL_ABS(estimator->CalcOffroad(from, to, EdgeEstimator::Purpose::ETA), eta / 1.25, kAccuracyEps, ());
+  TEST_ALMOST_EQUAL_ABS(estimator->GetFerryLandingPenalty(EdgeEstimator::Purpose::ETA), ferryEta, kAccuracyEps, ());
+  TEST_ALMOST_EQUAL_ABS(estimator->CalcSegmentWeight(segment, road, EdgeEstimator::Purpose::Weight), segmentWeight,
+                        kAccuracyEps, ());
+  TEST_ALMOST_EQUAL_ABS(estimator->CalcSegmentWeight(segment, road, EdgeEstimator::Purpose::ETA), segmentEta / 1.25,
+                        kAccuracyEps, ());
+}
+
+UNIT_TEST(RouteSpeedFactor_AffectsEtaOnly)
+{
+  TestRouteSpeedFactor(VehicleType::Pedestrian);
+  TestRouteSpeedFactor(VehicleType::Bicycle);
 }
 }  // namespace

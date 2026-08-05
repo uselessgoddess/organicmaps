@@ -57,6 +57,10 @@ public:
   double GetTransitWalkWeightFactor() const { return m_transitWalkWeightFactor; }
   double GetTransitTransferFactor() const { return m_transitTransferFactor; }
 
+  /// Scales moving time for ETA calculations. Routing weights and fixed penalties are unchanged.
+  void SetRouteSpeedFactor(double factor);
+  double GetRouteSpeedFactor() const { return m_routeSpeedFactor; }
+
   double CalcHeuristic(ms::LatLon const & from, ms::LatLon const & to) const;
   // Estimates time in seconds it takes to go from point |from| to point |to| along a leap (fake)
   // edge |from|-|to| using real features.
@@ -85,12 +89,16 @@ public:
                                                std::shared_ptr<TrafficStash> trafficStash, DataSource * dataSourcePtr,
                                                std::shared_ptr<NumMwmIds> numMwmIds);
 
+protected:
+  double ApplyRouteSpeedFactor(double timeSec, Purpose purpose) const;
+
 private:
   double const m_maxWeightSpeedMpS;
   SpeedKMpH const m_offroadSpeedKMpH;
   Strategy m_strategy = Strategy::Normal;
   double m_transitWalkWeightFactor = 1.0;
   double m_transitTransferFactor = 1.0;
+  double m_routeSpeedFactor = 1.0;
 
   // DataSource * m_dataSourcePtr;
   // std::shared_ptr<NumMwmIds> m_numMwmIds;

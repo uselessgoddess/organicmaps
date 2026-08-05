@@ -6,6 +6,7 @@
 #include "routing/checkpoint_predictor.hpp"
 #include "routing/index_router.hpp"
 #include "routing/route.hpp"
+#include "routing/route_speed_settings.hpp"
 #include "routing/routing_callbacks.hpp"
 #include "routing/ruler_router.hpp"
 #include "routing/speed_camera.hpp"
@@ -552,9 +553,11 @@ void RoutingManager::SetRouterImpl(RouterType type)
     auto const getMwmRectByName = [this](std::string const & countryId)
     { return m_callbacks.m_countryInfoGetter().GetLimitRectForLeaf(countryId); };
 
+    double const routeSpeedFactor =
+        RouteSpeedSettings::IsSupported(vehicleType) ? RouteSpeedSettings::GetFactor(vehicleType) : 1.0;
     router = std::make_unique<IndexRouter>(vehicleType, m_loadAltitudes, m_callbacks.m_countryParentNameGetterFn,
                                            countryFileGetter, getMwmRectByName, m_numMwmIDs, m_numMwmTree,
-                                           m_routingSession, dataSource);
+                                           m_routingSession, dataSource, routeSpeedFactor);
     absentFinder = std::make_unique<AbsentRegionsFinder>(countryFileGetter, localFileChecker, m_numMwmIDs, dataSource);
   }
 
@@ -1516,6 +1519,32 @@ void RoutingManager::SetRouter(RouterType type)
     return;
 
   SetRouterImpl(type);
+}
+
+bool RoutingManager::IsRouteSpeedSettingSupported() const
+{
+  return m_currentRouterType != RouterType::Count &&
+         RouteSpeedSettings::IsSupported(GetVehicleType(m_currentRouterType));
+}
+
+int RoutingManager::GetRouteSpeedPercentage() const
+{
+  CHECK(IsRouteSpeedSettingSupported(), (m_currentRouterType));
+  return RouteSpeedSettings::Load(GetVehicleType(m_currentRouterType));
+}
+
+void RoutingManager::SetRouteSpeedPercentage(int percentage)
+{
+  CHECK_THREAD_CHECKER(m_threadChecker, ("SetRouteSpeedPercentage"));
+  CHECK(IsRouteSpeedSettingSupported(), (m_currentRouterType));
+
+  auto const vehicleType = GetVehicleType(m_currentRouterType);
+  if (RouteSpeedSettings::Load(vehicleType) == percentage)
+    return;
+
+  RouteSpeedSettings::Save(vehicleType, percentage);
+  if (m_numMwmIDs)
+    SetRouterImpl(m_currentRouterType);
 }
 
 // static
