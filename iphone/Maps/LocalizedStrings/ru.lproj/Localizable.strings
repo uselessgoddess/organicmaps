@@ -717,6 +717,18 @@
 "driving_options_title" = "Настройки объезда";
 "route_speed_title" = "Скорость передвижения";
 "route_speed_description" = "Корректирует расчётное время в пути с учётом вашего темпа. Маршрут не меняется.";
+"route_wind_enabled" = "Учитывать ветер";
+"route_wind_speed" = "Скорость ветра";
+"route_wind_direction" = "Ветер дует с";
+"route_wind_description" = "Корректирует расчётное время велосипеда по составляющей ветра вдоль каждого участка. Направление указывает, откуда дует ветер.";
+"route_wind_direction_n" = "С";
+"route_wind_direction_ne" = "СВ";
+"route_wind_direction_e" = "В";
+"route_wind_direction_se" = "ЮВ";
+"route_wind_direction_s" = "Ю";
+"route_wind_direction_sw" = "ЮЗ";
+"route_wind_direction_w" = "З";
+"route_wind_direction_nw" = "СЗ";
 
 /* Recommended length for CarPlay and Android Auto is around 25-27 characters */
 "avoid_tolls" = "Избегать платных дорог";

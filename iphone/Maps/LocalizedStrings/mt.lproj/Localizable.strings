@@ -717,6 +717,18 @@
 "driving_options_title" = "Għażliet tar-rotta";
 "route_speed_title" = "Travel speed";
 "route_speed_description" = "Adjusts estimated travel time to your pace. Route choice is unchanged.";
+"route_wind_enabled" = "Consider wind";
+"route_wind_speed" = "Wind speed";
+"route_wind_direction" = "Wind from";
+"route_wind_description" = "Adjusts bicycle ETA using the wind component along each route segment. Direction is where the wind comes from.";
+"route_wind_direction_n" = "N";
+"route_wind_direction_ne" = "NE";
+"route_wind_direction_e" = "E";
+"route_wind_direction_se" = "SE";
+"route_wind_direction_s" = "S";
+"route_wind_direction_sw" = "SW";
+"route_wind_direction_w" = "W";
+"route_wind_direction_nw" = "NW";
 
 /* Recommended length for CarPlay and Android Auto is around 25-27 characters */
 "avoid_tolls" = "Evita ħlasijiet għall-użu tat-triq";

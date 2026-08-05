@@ -680,6 +680,18 @@
     <string name="driving_options_title">Настройки объезда</string>
     <string name="route_speed_title">Скорость передвижения</string>
     <string name="route_speed_description">Корректирует расчётное время в пути с учётом вашего темпа. Маршрут не меняется.</string>
+    <string name="route_wind_enabled">Учитывать ветер</string>
+    <string name="route_wind_speed">Скорость ветра</string>
+    <string name="route_wind_direction">Ветер дует с</string>
+    <string name="route_wind_description">Корректирует расчётное время велосипеда по составляющей ветра вдоль каждого участка. Направление указывает, откуда дует ветер.</string>
+    <string name="route_wind_direction_n">С</string>
+    <string name="route_wind_direction_ne">СВ</string>
+    <string name="route_wind_direction_e">В</string>
+    <string name="route_wind_direction_se">ЮВ</string>
+    <string name="route_wind_direction_s">Ю</string>
+    <string name="route_wind_direction_sw">ЮЗ</string>
+    <string name="route_wind_direction_w">З</string>
+    <string name="route_wind_direction_nw">СЗ</string>
     <!-- Recommended length for CarPlay and Android Auto is around 25-27 characters -->
     <string name="avoid_tolls">Избегать платных дорог</string>
     <!-- Recommended length for CarPlay and Android Auto is around 25-27 characters -->
