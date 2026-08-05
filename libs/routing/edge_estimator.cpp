@@ -65,7 +65,9 @@ bool IsTransit(std::optional<HighwayType> type)
 // Simplified cycling power model, see Martin et al. (1998), "Validation of a Mathematical Model for
 // Road Cycling Power". A rider holds a roughly constant power, and the wind changes the aerodynamic
 // term only, so the ground speed drops much less than the headwind itself:
-//   P = F_other * v + kDragFactor * v * (v + headwind)^2
+//   P = F_other * v + kDragFactor * v * (v + headwind) * |v + headwind|
+// The drag keeps the sign of the airspeed: a tailwind faster than the rider pushes them along
+// instead of resisting.
 double constexpr kAirDensityKgPerM3 = 1.225;  // at sea level, 15 C
 double constexpr kDragAreaM2 = 0.4;           // CdA of an upright rider
 double constexpr kDragFactor = 0.5 * kAirDensityKgPerM3 * kDragAreaM2;
@@ -90,10 +92,13 @@ double SpeedWithHeadwindMpS(double stillSpeedMpS, double headwindMpS, double pow
   double const otherForceN = powerW / stillSpeedMpS - kDragFactor * math::Pow2(stillSpeedMpS);
 
   auto const excessPowerW = [&](double speedMpS)
-  { return otherForceN * speedMpS + kDragFactor * speedMpS * math::Pow2(speedMpS + headwindMpS) - powerW; };
+  {
+    double const airSpeedMpS = speedMpS + headwindMpS;
+    return otherForceN * speedMpS + kDragFactor * speedMpS * airSpeedMpS * std::fabs(airSpeedMpS) - powerW;
+  };
 
-  // The root is bracketed: excessPowerW() is -powerW at 0 and at least powerW * |headwind| /
-  // stillSpeed above 0 at the upper bound, and the power grows monotonically around the root.
+  // The root is bracketed and unique: excessPowerW() is -powerW at 0 and powerW * |headwind| /
+  // stillSpeed at the upper bound, and it crosses zero only once in between.
   double lo = 0.0;
   double hi = stillSpeedMpS + std::fabs(headwindMpS);
   for (size_t i = 0; i < 32; ++i)

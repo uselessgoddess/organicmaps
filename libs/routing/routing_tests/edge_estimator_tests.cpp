@@ -170,6 +170,33 @@ UNIT_TEST(BicycleWind_AffectsEtaBySegmentDirection)
   TEST_GREATER(headwindEta - eta, eta - tailwindEta, ());
 }
 
+// A tailwind faster than the rider pushes them along, so it must keep making the ride quicker over
+// the whole range the settings allow, never slower.
+UNIT_TEST(BicycleWind_StrongTailwindNeverSlowsDown)
+{
+  double const cruisingSpeedKMpH = GetCruisingSpeedRange(VehicleType::Bicycle).m_min;
+  auto const estimator = EdgeEstimator::Create(VehicleType::Bicycle, cruisingSpeedKMpH, SpeedKMpH(cruisingSpeedKMpH),
+                                               nullptr, nullptr, nullptr);
+  RoadGeometry const eastboundRoad(false /* oneWay */,
+                                   Maxspeed(measurement_utils::Units::Metric, cruisingSpeedKMpH, kInvalidSpeed),
+                                   {{0.0, 0.0}, {0.001, 0.0}});
+  Segment const segment(kFakeNumMwmId, 0 /* featureId */, 0 /* segmentIdx */, true /* forward */);
+
+  auto const etaWithWind = [&](int windSpeedMpS)
+  {
+    estimator->SetRouteSpeedSettings(VehicleType::Bicycle, {cruisingSpeedKMpH, windSpeedMpS, 270 /* from west */});
+    return estimator->CalcSegmentWeight(segment, eastboundRoad, EdgeEstimator::Purpose::ETA);
+  };
+
+  double previousEta = etaWithWind(0 /* still air */);
+  for (int windSpeedMpS = 1; windSpeedMpS <= kMaxWindSpeedMpS; ++windSpeedMpS)
+  {
+    double const tailwindEta = etaWithWind(windSpeedMpS);
+    TEST_LESS(tailwindEta, previousEta, (windSpeedMpS));
+    previousEta = tailwindEta;
+  }
+}
+
 // The wind is a bicycle setting: pedestrians walk slowly enough for it not to matter.
 UNIT_TEST(Wind_IgnoredForPedestrian)
 {

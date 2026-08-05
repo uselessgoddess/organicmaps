@@ -10,7 +10,7 @@ speed drops much less than the headwind itself.
 Power balance used here (Martin et al., 1998, "Validation of a Mathematical
 Model for Road Cycling Power"):
 
-    P = F_other * v + 0.5 * rho * CdA * v * (v + w)^2
+    P = F_other * v + 0.5 * rho * CdA * v * (v + w) * |v + w|
 
 ``F_other`` collects rolling resistance, gravity and drivetrain losses; it is
 recovered from the still-air speed that the routing profile predicts for the
@@ -40,10 +40,12 @@ def speed_with_wind(still_speed_mps, headwind_mps, power_w):
     other_force = power_w / still_speed_mps - DRAG * still_speed_mps**2
 
     def excess(v):
-        return other_force * v + DRAG * v * (v + headwind_mps) ** 2 - power_w
+        # The drag keeps the sign of the airspeed: a tailwind faster than the rider pushes.
+        air = v + headwind_mps
+        return other_force * v + DRAG * v * air * abs(air) - power_w
 
     lo, hi = 0.0, still_speed_mps + abs(headwind_mps)
-    assert excess(lo) <= 0.0 <= excess(hi), (excess(lo), excess(hi))
+    assert excess(lo) <= 1e-9 and excess(hi) >= -1e-9, (excess(lo), excess(hi))
     for _ in range(32):
         mid = 0.5 * (lo + hi)
         if excess(mid) < 0.0:
