@@ -18,6 +18,7 @@ import app.organicmaps.base.BaseMwmToolbarFragment;
 import app.organicmaps.sdk.Router;
 import app.organicmaps.sdk.routing.RoutingOptions;
 import app.organicmaps.sdk.settings.RoadType;
+import app.organicmaps.sdk.settings.UnitLocale;
 import app.organicmaps.sdk.util.StringUtils;
 import app.organicmaps.util.WindowInsetUtils.PaddingInsetsListener;
 import com.google.android.material.slider.Slider;
@@ -47,11 +48,12 @@ public class DrivingOptionsFragment extends BaseMwmToolbarFragment
   private boolean mRouteSpeedSupported;
   private int mInitialRouteSpeedPercentage;
   private int mRouteSpeedPercentage;
+  private double mRouteDefaultCruisingSpeedKmph;
   private boolean mWindSupported;
   private boolean mInitialWindEnabled;
   private boolean mWindEnabled;
-  private int mInitialWindSpeedKmph;
-  private int mWindSpeedKmph;
+  private int mInitialWindSpeedMps;
+  private int mWindSpeedMps;
   private int mInitialWindDirectionDegrees;
   private int mWindDirectionDegrees;
 
@@ -64,17 +66,18 @@ public class DrivingOptionsFragment extends BaseMwmToolbarFragment
     mRouteSpeedSupported = Router.isRouteSpeedSettingSupported();
     mInitialRouteSpeedPercentage =
         mRouteSpeedSupported ? Router.getRouteSpeedPercentage() : Router.DEFAULT_ROUTE_SPEED_PERCENTAGE;
+    mRouteDefaultCruisingSpeedKmph = mRouteSpeedSupported ? Router.getRouteDefaultCruisingSpeedKmph() : 0.0;
     mRouteSpeedPercentage = savedInstanceState != null
                               ? savedInstanceState.getInt(BUNDLE_ROUTE_SPEED, mInitialRouteSpeedPercentage)
                               : mInitialRouteSpeedPercentage;
     mWindSupported = Router.isBicycleWindSettingSupported();
     mInitialWindEnabled = mWindSupported && Router.isBicycleWindEnabled();
-    mInitialWindSpeedKmph = mWindSupported ? Router.getBicycleWindSpeedKmph() : Router.DEFAULT_WIND_SPEED_KMPH;
+    mInitialWindSpeedMps = mWindSupported ? Router.getBicycleWindSpeedMps() : Router.DEFAULT_WIND_SPEED_MPS;
     mInitialWindDirectionDegrees = mWindSupported ? Router.getBicycleWindDirectionDegrees() : 0;
     mWindEnabled = savedInstanceState != null ? savedInstanceState.getBoolean(BUNDLE_WIND_ENABLED, mInitialWindEnabled)
                                               : mInitialWindEnabled;
-    mWindSpeedKmph = savedInstanceState != null ? savedInstanceState.getInt(BUNDLE_WIND_SPEED, mInitialWindSpeedKmph)
-                                                : mInitialWindSpeedKmph;
+    mWindSpeedMps = savedInstanceState != null ? savedInstanceState.getInt(BUNDLE_WIND_SPEED, mInitialWindSpeedMps)
+                                               : mInitialWindSpeedMps;
     mWindDirectionDegrees = savedInstanceState != null
                               ? savedInstanceState.getInt(BUNDLE_WIND_DIRECTION, mInitialWindDirectionDegrees)
                               : mInitialWindDirectionDegrees;
@@ -110,7 +113,7 @@ public class DrivingOptionsFragment extends BaseMwmToolbarFragment
     outState.putIntegerArrayList(BUNDLE_ROAD_TYPES, savedRoadTypes);
     outState.putInt(BUNDLE_ROUTE_SPEED, mRouteSpeedPercentage);
     outState.putBoolean(BUNDLE_WIND_ENABLED, mWindEnabled);
-    outState.putInt(BUNDLE_WIND_SPEED, mWindSpeedKmph);
+    outState.putInt(BUNDLE_WIND_SPEED, mWindSpeedMps);
     outState.putInt(BUNDLE_WIND_DIRECTION, mWindDirectionDegrees);
   }
 
@@ -120,7 +123,7 @@ public class DrivingOptionsFragment extends BaseMwmToolbarFragment
     {
       boolean speedUnchanged = mInitialRouteSpeedPercentage == mRouteSpeedPercentage;
       boolean windUnchanged = !mWindSupported
-                           || (mInitialWindEnabled == mWindEnabled && mInitialWindSpeedKmph == mWindSpeedKmph
+                           || (mInitialWindEnabled == mWindEnabled && mInitialWindSpeedMps == mWindSpeedMps
                                && mInitialWindDirectionDegrees == mWindDirectionDegrees);
       return speedUnchanged && windUnchanged;
     }
@@ -139,7 +142,7 @@ public class DrivingOptionsFragment extends BaseMwmToolbarFragment
     else
     {
       if (mWindSupported)
-        Router.setBicycleRouteSettings(mRouteSpeedPercentage, mWindEnabled, mWindSpeedKmph, mWindDirectionDegrees);
+        Router.setBicycleRouteSettings(mRouteSpeedPercentage, mWindEnabled, mWindSpeedMps, mWindDirectionDegrees);
       else if (mRouteSpeedSupported)
         Router.setRouteSpeedPercentage(mRouteSpeedPercentage);
       requireActivity().setResult(Activity.RESULT_OK);
@@ -160,10 +163,10 @@ public class DrivingOptionsFragment extends BaseMwmToolbarFragment
       TextView routeSpeedValue = root.findViewById(R.id.route_speed_value);
       Slider routeSpeedSlider = root.findViewById(R.id.route_speed_slider);
       routeSpeedSlider.setValue(mRouteSpeedPercentage);
-      routeSpeedValue.setText(formatPercentage(mRouteSpeedPercentage));
+      routeSpeedValue.setText(formatCruisingSpeed(mRouteSpeedPercentage));
       routeSpeedSlider.addOnChangeListener((slider, value, fromUser) -> {
         mRouteSpeedPercentage = Math.round(value);
-        routeSpeedValue.setText(formatPercentage(mRouteSpeedPercentage));
+        routeSpeedValue.setText(formatCruisingSpeed(mRouteSpeedPercentage));
       });
     }
 
@@ -180,8 +183,8 @@ public class DrivingOptionsFragment extends BaseMwmToolbarFragment
 
       windEnabled.setChecked(mWindEnabled);
       windInputs.setVisibility(mWindEnabled ? View.VISIBLE : View.GONE);
-      windSpeedSlider.setValue(mWindSpeedKmph);
-      windSpeedValue.setText(formatWindSpeed(mWindSpeedKmph));
+      windSpeedSlider.setValue(mWindSpeedMps);
+      windSpeedValue.setText(formatWindSpeed(mWindSpeedMps));
       windDirectionSlider.setValue(mWindDirectionDegrees);
       windDirectionValue.setText(formatWindDirection(mWindDirectionDegrees));
 
@@ -190,8 +193,8 @@ public class DrivingOptionsFragment extends BaseMwmToolbarFragment
         windInputs.setVisibility(isChecked ? View.VISIBLE : View.GONE);
       });
       windSpeedSlider.addOnChangeListener((slider, value, fromUser) -> {
-        mWindSpeedKmph = Math.round(value);
-        windSpeedValue.setText(formatWindSpeed(mWindSpeedKmph));
+        mWindSpeedMps = Math.round(value);
+        windSpeedValue.setText(formatWindSpeed(mWindSpeedMps));
       });
       windDirectionSlider.addOnChangeListener((slider, value, fromUser) -> {
         mWindDirectionDegrees = Math.round(value);
@@ -221,15 +224,23 @@ public class DrivingOptionsFragment extends BaseMwmToolbarFragment
   }
 
   @NonNull
-  private static String formatPercentage(int percentage)
+  private String formatCruisingSpeed(int percentage)
   {
-    return NumberFormat.getPercentInstance().format(percentage / 100.0);
+    double speedKmph = mRouteDefaultCruisingSpeedKmph * percentage / 100.0;
+    Pair<String, String> speedAndUnits = StringUtils.nativeFormatSpeedAndUnits(speedKmph / 3.6);
+    if (UnitLocale.getUnits() == UnitLocale.UNITS_FOOT)
+      speedKmph *= 0.621371192;
+    NumberFormat numberFormat = NumberFormat.getNumberInstance();
+    numberFormat.setMaximumFractionDigits(2);
+    return numberFormat.format(speedKmph) + "\u00a0" + speedAndUnits.second;
   }
 
   @NonNull
-  private static String formatWindSpeed(int speedKmph)
+  private static String formatWindSpeed(int speedMps)
   {
-    Pair<String, String> speedAndUnits = StringUtils.nativeFormatSpeedAndUnits(speedKmph / 3.6);
+    if (UnitLocale.getUnits() == UnitLocale.UNITS_METRIC)
+      return speedMps + "\u00a0m/s";
+    Pair<String, String> speedAndUnits = StringUtils.nativeFormatSpeedAndUnits(speedMps);
     return speedAndUnits.first + "\u00a0" + speedAndUnits.second;
   }
 

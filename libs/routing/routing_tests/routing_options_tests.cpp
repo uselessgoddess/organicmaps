@@ -110,12 +110,21 @@ UNIT_CLASS_TEST(RouteSpeedSettingsTests, SavesEachModeSeparately)
   TEST_ALMOST_EQUAL_ABS(RouteSpeedSettings::GetFactor(VehicleType::Bicycle), 1.75, 1e-9, ());
 }
 
+UNIT_TEST(RouteSpeedSettings_ConvertsCruisingSpeed)
+{
+  TEST_ALMOST_EQUAL_ABS(RouteSpeedSettings::GetDefaultCruisingSpeedKMpH(VehicleType::Pedestrian), 5.0, 1e-9, ());
+  TEST_ALMOST_EQUAL_ABS(RouteSpeedSettings::GetDefaultCruisingSpeedKMpH(VehicleType::Bicycle), 20.0, 1e-9, ());
+  TEST_ALMOST_EQUAL_ABS(RouteSpeedSettings::PercentageToCruisingSpeedKMpH(VehicleType::Pedestrian, 125), 6.25, 1e-9,
+                        ());
+  TEST_ALMOST_EQUAL_ABS(RouteSpeedSettings::PercentageToCruisingSpeedKMpH(VehicleType::Bicycle, 150), 30.0, 1e-9, ());
+}
+
 UNIT_CLASS_TEST(RouteSpeedSettingsTests, SavesBicycleWind)
 {
-  RouteSpeedSettings::SaveBicycleWind({true, 30, 225});
+  RouteSpeedSettings::SaveBicycleWind({true, 8, 225});
   auto const wind = RouteSpeedSettings::LoadBicycleWind();
   TEST(wind.m_enabled, ());
-  TEST_EQUAL(wind.m_speedKMpH, 30, ());
+  TEST_EQUAL(wind.m_speedMpS, 8, ());
   TEST_EQUAL(wind.m_directionDegrees, 225, ());
 }
 }  // namespace

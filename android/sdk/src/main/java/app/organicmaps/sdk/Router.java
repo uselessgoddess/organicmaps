@@ -11,10 +11,10 @@ public enum Router
   Ruler(4);
 
   public static final int DEFAULT_ROUTE_SPEED_PERCENTAGE = 100;
-  public static final int DEFAULT_WIND_SPEED_KMPH = 10;
-  public static final int MIN_WIND_SPEED_KMPH = 5;
-  public static final int MAX_WIND_SPEED_KMPH = 100;
-  public static final int WIND_SPEED_STEP_KMPH = 5;
+  public static final int DEFAULT_WIND_SPEED_MPS = 3;
+  public static final int MIN_WIND_SPEED_MPS = 1;
+  public static final int MAX_WIND_SPEED_MPS = 30;
+  public static final int WIND_SPEED_STEP_MPS = 1;
   public static final int WIND_DIRECTION_STEP_DEGREES = 45;
 
   Router(int type)
@@ -52,6 +52,11 @@ public enum Router
     return nativeGetRouteSpeedPercentage();
   }
 
+  public static double getRouteDefaultCruisingSpeedKmph()
+  {
+    return nativeGetRouteDefaultCruisingSpeedKmph();
+  }
+
   public static void setRouteSpeedPercentage(int percentage)
   {
     nativeSetRouteSpeedPercentage(percentage);
@@ -67,9 +72,9 @@ public enum Router
     return nativeIsBicycleWindEnabled();
   }
 
-  public static int getBicycleWindSpeedKmph()
+  public static int getBicycleWindSpeedMps()
   {
-    return nativeGetBicycleWindSpeedKmph();
+    return nativeGetBicycleWindSpeedMps();
   }
 
   public static int getBicycleWindDirectionDegrees()
@@ -77,10 +82,10 @@ public enum Router
     return nativeGetBicycleWindDirectionDegrees();
   }
 
-  public static void setBicycleRouteSettings(int speedPercentage, boolean windEnabled, int windSpeedKmph,
+  public static void setBicycleRouteSettings(int speedPercentage, boolean windEnabled, int windSpeedMps,
                                              int windDirectionDegrees)
   {
-    nativeSetBicycleRouteSettings(speedPercentage, windEnabled, windSpeedKmph, windDirectionDegrees);
+    nativeSetBicycleRouteSettings(speedPercentage, windEnabled, windSpeedMps, windDirectionDegrees);
   }
 
   public static Router valueOf(int type)
@@ -102,16 +107,18 @@ public enum Router
 
   private static native int nativeGetRouteSpeedPercentage();
 
+  private static native double nativeGetRouteDefaultCruisingSpeedKmph();
+
   private static native void nativeSetRouteSpeedPercentage(int percentage);
 
   private static native boolean nativeIsBicycleWindSettingSupported();
 
   private static native boolean nativeIsBicycleWindEnabled();
 
-  private static native int nativeGetBicycleWindSpeedKmph();
+  private static native int nativeGetBicycleWindSpeedMps();
 
   private static native int nativeGetBicycleWindDirectionDegrees();
 
-  private static native void nativeSetBicycleRouteSettings(int speedPercentage, boolean windEnabled, int windSpeedKmph,
+  private static native void nativeSetBicycleRouteSettings(int speedPercentage, boolean windEnabled, int windSpeedMps,
                                                            int windDirectionDegrees);
 }

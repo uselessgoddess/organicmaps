@@ -47,13 +47,12 @@ final class RoutingOptionsSettingsPresenter {
 
   private func routeSpeedItem(_ state: RoutingOptionsSettingsState) -> RoutingOptionsSettingsItemViewModel {
     let percentage = state.routeSpeedPercentage
-    let valueTitle = NumberFormatter.localizedString(from: NSNumber(value: Double(percentage) / 100.0),
-                                                     number: .percent)
+    let speedKMpH = state.options.routeDefaultCruisingSpeedKMpH * Double(percentage) / 100.0
     return SettingsItemViewModel(item: .routeSpeed,
                                  kind: .slider(value: Float(percentage),
                                                minimumValue: Float(RoutingOptions.minimumRouteSpeedPercentage),
                                                maximumValue: Float(RoutingOptions.maximumRouteSpeedPercentage),
-                                               valueTitle: valueTitle,
+                                               valueTitle: cruisingSpeedTitle(speedKMpH),
                                                isEnabled: true))
   }
 
@@ -66,10 +65,10 @@ final class RoutingOptionsSettingsPresenter {
   private func windSpeedItem(_ state: RoutingOptionsSettingsState) -> RoutingOptionsSettingsItemViewModel {
     SettingsItemViewModel(item: .windSpeed,
                           title: RoutingOption.windSpeed.title,
-                          kind: .slider(value: Float(state.bicycleWindSpeedKMpH),
-                                        minimumValue: Float(RoutingOptions.minimumBicycleWindSpeedKMpH),
-                                        maximumValue: Float(RoutingOptions.maximumBicycleWindSpeedKMpH),
-                                        valueTitle: windSpeedTitle(state.bicycleWindSpeedKMpH),
+                          kind: .slider(value: Float(state.bicycleWindSpeedMpS),
+                                        minimumValue: Float(RoutingOptions.minimumBicycleWindSpeedMpS),
+                                        maximumValue: Float(RoutingOptions.maximumBicycleWindSpeedMpS),
+                                        valueTitle: windSpeedTitle(state.bicycleWindSpeedMpS),
                                         isEnabled: true))
   }
 
@@ -88,11 +87,17 @@ final class RoutingOptionsSettingsPresenter {
                                                isEnabled: true))
   }
 
-  private func windSpeedTitle(_ speedKMpH: Int) -> String {
-    if Settings.measurementUnits() == .imperial {
-      let speedMPH = Int((Double(speedKMpH) * 0.621371192).rounded())
-      return "\(speedMPH)\u{00a0}\(L("miles_per_hour"))"
-    }
-    return "\(speedKMpH)\u{00a0}\(L("kilometers_per_hour"))"
+  private func cruisingSpeedTitle(_ speedKMpH: Double) -> String {
+    let value = Settings.measurementUnits() == .imperial ? speedKMpH * 0.621371192 : speedKMpH
+    let units = Settings.measurementUnits() == .imperial ? L("miles_per_hour") : L("kilometers_per_hour")
+    let formatter = NumberFormatter()
+    formatter.maximumFractionDigits = 2
+    return "\(formatter.string(from: NSNumber(value: value)) ?? String(value))\u{00a0}\(units)"
+  }
+
+  private func windSpeedTitle(_ speedMpS: Int) -> String {
+    guard Settings.measurementUnits() == .imperial else { return "\(speedMpS)\u{00a0}m/s" }
+    let speedMPH = Int((Double(speedMpS) * 2.236936292).rounded())
+    return "\(speedMPH)\u{00a0}\(L("miles_per_hour"))"
   }
 }

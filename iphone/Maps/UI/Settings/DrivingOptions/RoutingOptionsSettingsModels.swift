@@ -72,7 +72,7 @@ struct RoutingOptionsSettingsState {
   let options: RoutingOptions
   var routeSpeedPercentage: Int
   var bicycleWindEnabled: Bool
-  var bicycleWindSpeedKMpH: Int
+  var bicycleWindSpeedMpS: Int
   var bicycleWindDirectionDegrees: Int
 }
 

@@ -10,9 +10,10 @@
   routing::RoutingOptions _options;
   BOOL _routeSpeedSettingSupported;
   NSInteger _routeSpeedPercentage;
+  double _routeDefaultCruisingSpeedKMpH;
   BOOL _bicycleWindSettingSupported;
   BOOL _bicycleWindEnabled;
-  NSInteger _bicycleWindSpeedKMpH;
+  NSInteger _bicycleWindSpeedMpS;
   NSInteger _bicycleWindDirectionDegrees;
 }
 
@@ -30,17 +31,19 @@
     _routeSpeedSettingSupported = routingManager.IsRouteSpeedSettingSupported();
     _routeSpeedPercentage = _routeSpeedSettingSupported ? routingManager.GetRouteSpeedPercentage()
                                                         : routing::RouteSpeedSettings::kDefaultPercentage;
+    _routeDefaultCruisingSpeedKMpH =
+        _routeSpeedSettingSupported ? routingManager.GetRouteDefaultCruisingSpeedKMpH() : 0.0;
     _bicycleWindSettingSupported = routingManager.IsBicycleWindSettingSupported();
     if (_bicycleWindSettingSupported)
     {
       _bicycleWindEnabled = routingManager.IsBicycleWindEnabled();
-      _bicycleWindSpeedKMpH = routingManager.GetBicycleWindSpeedKMpH();
+      _bicycleWindSpeedMpS = routingManager.GetBicycleWindSpeedMpS();
       _bicycleWindDirectionDegrees = routingManager.GetBicycleWindDirectionDegrees();
     }
     else
     {
       _bicycleWindEnabled = NO;
-      _bicycleWindSpeedKMpH = routing::RouteSpeedSettings::kDefaultWindSpeedKMpH;
+      _bicycleWindSpeedMpS = routing::RouteSpeedSettings::kDefaultWindSpeedMpS;
       _bicycleWindDirectionDegrees = 0;
     }
   }
@@ -113,6 +116,11 @@
   _routeSpeedPercentage = percentage;
 }
 
+- (double)routeDefaultCruisingSpeedKMpH
+{
+  return _routeDefaultCruisingSpeedKMpH;
+}
+
 - (BOOL)bicycleWindSettingSupported
 {
   return _bicycleWindSettingSupported;
@@ -128,14 +136,14 @@
   _bicycleWindEnabled = enabled;
 }
 
-- (NSInteger)bicycleWindSpeedKMpH
+- (NSInteger)bicycleWindSpeedMpS
 {
-  return _bicycleWindSpeedKMpH;
+  return _bicycleWindSpeedMpS;
 }
 
-- (void)setBicycleWindSpeedKMpH:(NSInteger)speedKMpH
+- (void)setBicycleWindSpeedMpS:(NSInteger)speedMpS
 {
-  _bicycleWindSpeedKMpH = speedKMpH;
+  _bicycleWindSpeedMpS = speedMpS;
 }
 
 - (NSInteger)bicycleWindDirectionDegrees
@@ -168,24 +176,24 @@
   return routing::RouteSpeedSettings::kStepPercentage;
 }
 
-+ (NSInteger)defaultBicycleWindSpeedKMpH
++ (NSInteger)defaultBicycleWindSpeedMpS
 {
-  return routing::RouteSpeedSettings::kDefaultWindSpeedKMpH;
+  return routing::RouteSpeedSettings::kDefaultWindSpeedMpS;
 }
 
-+ (NSInteger)minimumBicycleWindSpeedKMpH
++ (NSInteger)minimumBicycleWindSpeedMpS
 {
-  return routing::RouteSpeedSettings::kMinWindSpeedKMpH;
+  return routing::RouteSpeedSettings::kMinWindSpeedMpS;
 }
 
-+ (NSInteger)maximumBicycleWindSpeedKMpH
++ (NSInteger)maximumBicycleWindSpeedMpS
 {
-  return routing::RouteSpeedSettings::kMaxWindSpeedKMpH;
+  return routing::RouteSpeedSettings::kMaxWindSpeedMpS;
 }
 
-+ (NSInteger)bicycleWindSpeedStepKMpH
++ (NSInteger)bicycleWindSpeedStepMpS
 {
-  return routing::RouteSpeedSettings::kWindSpeedStepKMpH;
+  return routing::RouteSpeedSettings::kWindSpeedStepMpS;
 }
 
 + (NSInteger)bicycleWindDirectionStepDegrees
@@ -199,7 +207,7 @@
   if (self.bicycleWindSettingSupported)
   {
     routingManager.SetBicycleRouteSettings(static_cast<int>(self.routeSpeedPercentage), self.bicycleWindEnabled,
-                                           static_cast<int>(self.bicycleWindSpeedKMpH),
+                                           static_cast<int>(self.bicycleWindSpeedMpS),
                                            static_cast<int>(self.bicycleWindDirectionDegrees));
     return;
   }
@@ -231,7 +239,7 @@
          another.bicycleWindSettingSupported == self.bicycleWindSettingSupported &&
          (!self.bicycleWindSettingSupported ||
           (another.bicycleWindEnabled == self.bicycleWindEnabled &&
-           another.bicycleWindSpeedKMpH == self.bicycleWindSpeedKMpH &&
+           another.bicycleWindSpeedMpS == self.bicycleWindSpeedMpS &&
            another.bicycleWindDirectionDegrees == self.bicycleWindDirectionDegrees));
 }
 
