@@ -715,8 +715,8 @@
 "show_at_the_bottom" = "Prikaži na dnu";
 "enable_logging_warning_message" = "To možnost omogočite začasno, da posnamete in nam ročno pošljete podrobne diagnostične dnevnike o vaši težavi z uporabo \"Prijavi napako\" v pogovornem oknu Pomoč. Dnevniki lahko vključujejo podatke o lokaciji.";
 "driving_options_title" = "Možnosti načrtovanja poti";
-"route_speed_title" = "Travel speed";
-"route_speed_description" = "Adjusts estimated travel time to your pace. Route choice is unchanged.";
+"route_speed_title" = "Cruising speed";
+"route_speed_description" = "Your usual speed on flat pavement. Terrain and road conditions are still considered; route choice is unchanged.";
 "route_wind_enabled" = "Consider wind";
 "route_wind_speed" = "Wind speed";
 "route_wind_direction" = "Wind from";

@@ -715,8 +715,8 @@
 "show_at_the_bottom" = "Zobrazit dole";
 "enable_logging_warning_message" = "Dočasně zapněte, abyste mohli zaznamenat a ručně nám poslat podrobná diagnostická data o vašem problému pomocí tlačítka „Nahlásit chybu“ v okně nápovědy. Protokoly mohou zahrnovat informace o poloze.";
 "driving_options_title" = "Možnosti trasy";
-"route_speed_title" = "Travel speed";
-"route_speed_description" = "Adjusts estimated travel time to your pace. Route choice is unchanged.";
+"route_speed_title" = "Cruising speed";
+"route_speed_description" = "Your usual speed on flat pavement. Terrain and road conditions are still considered; route choice is unchanged.";
 "route_wind_enabled" = "Consider wind";
 "route_wind_speed" = "Wind speed";
 "route_wind_direction" = "Wind from";

@@ -715,8 +715,8 @@
 "show_at_the_bottom" = "Паказваць знізу";
 "enable_logging_warning_message" = "Часова ўключыце гэты параметр , каб запісаць і ўручную адправіць нам падрабязную інфармацыю пра знойдзеную праблему праз кнопку «Паведаміць аб памылцы» ў акне «Даведка». Журнал падзей можа змяшчаць даныя пра месцазнаходжанне.";
 "driving_options_title" = "Налады пракладвання маршрутаў";
-"route_speed_title" = "Travel speed";
-"route_speed_description" = "Adjusts estimated travel time to your pace. Route choice is unchanged.";
+"route_speed_title" = "Cruising speed";
+"route_speed_description" = "Your usual speed on flat pavement. Terrain and road conditions are still considered; route choice is unchanged.";
 "route_wind_enabled" = "Consider wind";
 "route_wind_speed" = "Wind speed";
 "route_wind_direction" = "Wind from";

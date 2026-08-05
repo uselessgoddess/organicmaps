@@ -715,8 +715,8 @@
 "show_at_the_bottom" = "Vis i bunden";
 "enable_logging_warning_message" = "Aktivér denne mulighed midlertidigt for at registrere og manuelt sende detaljerede diagnostiske logfiler om dit problem til os ved hjælp af \"Rapportér en fejl\" i Hjælp-dialogen. Logfiler kan indeholde placeringsoplysninger.";
 "driving_options_title" = "Indstillinger for ruteberegning";
-"route_speed_title" = "Travel speed";
-"route_speed_description" = "Adjusts estimated travel time to your pace. Route choice is unchanged.";
+"route_speed_title" = "Cruising speed";
+"route_speed_description" = "Your usual speed on flat pavement. Terrain and road conditions are still considered; route choice is unchanged.";
 "route_wind_enabled" = "Consider wind";
 "route_wind_speed" = "Wind speed";
 "route_wind_direction" = "Wind from";

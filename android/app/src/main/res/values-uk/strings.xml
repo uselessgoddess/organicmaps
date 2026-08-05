@@ -678,8 +678,8 @@
     <string name="show_at_the_bottom">Показати внизу</string>
     <string name="enable_logging_warning_message">Дана опція вмикається для логування дій з метою діагностики. Це допомагає команді виявити проблеми з додатком. Тимчасово включайте цю настройку тільки для відправки детальної інформації про знайдену вами проблему в додатку через кнопку \"Сповістити про помилку\".</string>
     <string name="driving_options_title">Налаштування об’їзду</string>
-    <string name="route_speed_title">Швидкість пересування</string>
-    <string name="route_speed_description">Коригує розрахунковий час у дорозі з урахуванням вашого темпу. Маршрут не змінюється.</string>
+    <string name="route_speed_title">Крейсерська швидкість</string>
+    <string name="route_speed_description">Ваша звичайна швидкість на рівному асфальті. Рельєф і дорожні умови, як і раніше, враховуються; маршрут не змінюється.</string>
     <string name="route_wind_enabled">Враховувати вітер</string>
     <string name="route_wind_speed">Швидкість вітру</string>
     <string name="route_wind_direction">Вітер дме з</string>

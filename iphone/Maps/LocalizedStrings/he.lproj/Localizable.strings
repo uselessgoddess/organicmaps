@@ -715,8 +715,8 @@
 "show_at_the_bottom" = "הצג בתחתית";
 "enable_logging_warning_message" = "הפעל אפשרות זו כדי לתעד ובאופן ידני לשלוח אלינו פרטים דיאגנוסטיים על הבעיה שלך בעזרת הכפתור \"דווח על באג\" בתפריט עזרה. הפרטים עשויים לכלול מידע על מיקום.";
 "driving_options_title" = "אפשרויות מסלול";
-"route_speed_title" = "Travel speed";
-"route_speed_description" = "Adjusts estimated travel time to your pace. Route choice is unchanged.";
+"route_speed_title" = "Cruising speed";
+"route_speed_description" = "Your usual speed on flat pavement. Terrain and road conditions are still considered; route choice is unchanged.";
 "route_wind_enabled" = "Consider wind";
 "route_wind_speed" = "Wind speed";
 "route_wind_direction" = "Wind from";
