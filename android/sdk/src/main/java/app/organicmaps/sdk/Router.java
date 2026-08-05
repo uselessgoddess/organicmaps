@@ -11,6 +11,11 @@ public enum Router
   Ruler(4);
 
   public static final int DEFAULT_ROUTE_SPEED_PERCENTAGE = 100;
+  public static final int DEFAULT_WIND_SPEED_KMPH = 10;
+  public static final int MIN_WIND_SPEED_KMPH = 5;
+  public static final int MAX_WIND_SPEED_KMPH = 100;
+  public static final int WIND_SPEED_STEP_KMPH = 5;
+  public static final int WIND_DIRECTION_STEP_DEGREES = 45;
 
   Router(int type)
   {
@@ -52,6 +57,32 @@ public enum Router
     nativeSetRouteSpeedPercentage(percentage);
   }
 
+  public static boolean isBicycleWindSettingSupported()
+  {
+    return nativeIsBicycleWindSettingSupported();
+  }
+
+  public static boolean isBicycleWindEnabled()
+  {
+    return nativeIsBicycleWindEnabled();
+  }
+
+  public static int getBicycleWindSpeedKmph()
+  {
+    return nativeGetBicycleWindSpeedKmph();
+  }
+
+  public static int getBicycleWindDirectionDegrees()
+  {
+    return nativeGetBicycleWindDirectionDegrees();
+  }
+
+  public static void setBicycleRouteSettings(int speedPercentage, boolean windEnabled, int windSpeedKmph,
+                                             int windDirectionDegrees)
+  {
+    nativeSetBicycleRouteSettings(speedPercentage, windEnabled, windSpeedKmph, windDirectionDegrees);
+  }
+
   public static Router valueOf(int type)
   {
     return Router.values()[type];
@@ -72,4 +103,15 @@ public enum Router
   private static native int nativeGetRouteSpeedPercentage();
 
   private static native void nativeSetRouteSpeedPercentage(int percentage);
+
+  private static native boolean nativeIsBicycleWindSettingSupported();
+
+  private static native boolean nativeIsBicycleWindEnabled();
+
+  private static native int nativeGetBicycleWindSpeedKmph();
+
+  private static native int nativeGetBicycleWindDirectionDegrees();
+
+  private static native void nativeSetBicycleRouteSettings(int speedPercentage, boolean windEnabled, int windSpeedKmph,
+                                                           int windDirectionDegrees);
 }

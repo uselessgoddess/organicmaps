@@ -365,7 +365,12 @@ public class RoutingPlanFragment extends Fragment implements View.OnLayoutChange
   private static int getRoutingOptionsCount()
   {
     if (Router.isRouteSpeedSettingSupported())
-      return Router.getRouteSpeedPercentage() == Router.DEFAULT_ROUTE_SPEED_PERCENTAGE ? 0 : 1;
+    {
+      int count = Router.getRouteSpeedPercentage() == Router.DEFAULT_ROUTE_SPEED_PERCENTAGE ? 0 : 1;
+      if (Router.isBicycleWindSettingSupported() && Router.isBicycleWindEnabled())
+        ++count;
+      return count;
+    }
     return RoutingOptions.getActiveRoadTypes().size();
   }
 

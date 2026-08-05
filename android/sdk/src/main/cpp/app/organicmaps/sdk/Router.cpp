@@ -53,4 +53,31 @@ JNIEXPORT void Java_app_organicmaps_sdk_Router_nativeSetRouteSpeedPercentage(JNI
 {
   frm()->GetRoutingManager().SetRouteSpeedPercentage(percentage);
 }
+
+JNIEXPORT jboolean Java_app_organicmaps_sdk_Router_nativeIsBicycleWindSettingSupported(JNIEnv *, jclass)
+{
+  return frm()->GetRoutingManager().IsBicycleWindSettingSupported();
+}
+
+JNIEXPORT jboolean Java_app_organicmaps_sdk_Router_nativeIsBicycleWindEnabled(JNIEnv *, jclass)
+{
+  return frm()->GetRoutingManager().IsBicycleWindEnabled();
+}
+
+JNIEXPORT jint Java_app_organicmaps_sdk_Router_nativeGetBicycleWindSpeedKmph(JNIEnv *, jclass)
+{
+  return frm()->GetRoutingManager().GetBicycleWindSpeedKMpH();
+}
+
+JNIEXPORT jint Java_app_organicmaps_sdk_Router_nativeGetBicycleWindDirectionDegrees(JNIEnv *, jclass)
+{
+  return frm()->GetRoutingManager().GetBicycleWindDirectionDegrees();
+}
+
+JNIEXPORT void Java_app_organicmaps_sdk_Router_nativeSetBicycleRouteSettings(JNIEnv *, jclass, jint speedPercentage,
+                                                                             jboolean windEnabled, jint windSpeedKmph,
+                                                                             jint windDirectionDegrees)
+{
+  frm()->GetRoutingManager().SetBicycleRouteSettings(speedPercentage, windEnabled, windSpeedKmph, windDirectionDegrees);
+}
 }
