@@ -10,6 +10,8 @@ public enum Router
   Transit(3),
   Ruler(4);
 
+  public static final int DEFAULT_ROUTE_SPEED_PERCENTAGE = 100;
+
   Router(int type)
   {
     this.type = type;
@@ -35,6 +37,21 @@ public enum Router
     return Router.values()[nativeGetBest(srcLat, srcLon, dstLat, dstLon)];
   }
 
+  public static boolean isRouteSpeedSettingSupported()
+  {
+    return nativeIsRouteSpeedSettingSupported();
+  }
+
+  public static int getRouteSpeedPercentage()
+  {
+    return nativeGetRouteSpeedPercentage();
+  }
+
+  public static void setRouteSpeedPercentage(int percentage)
+  {
+    nativeSetRouteSpeedPercentage(percentage);
+  }
+
   public static Router valueOf(int type)
   {
     return Router.values()[type];
@@ -49,4 +66,10 @@ public enum Router
   private static native int nativeGetLastUsed();
 
   private static native int nativeGetBest(double srcLat, double srcLon, double dstLat, double dstLon);
+
+  private static native boolean nativeIsRouteSpeedSettingSupported();
+
+  private static native int nativeGetRouteSpeedPercentage();
+
+  private static native void nativeSetRouteSpeedPercentage(int percentage);
 }

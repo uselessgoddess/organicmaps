@@ -6,15 +6,19 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.CompoundButton;
+import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.widget.SwitchCompat;
 import androidx.core.view.ViewCompat;
 import app.organicmaps.R;
 import app.organicmaps.base.BaseMwmToolbarFragment;
+import app.organicmaps.sdk.Router;
 import app.organicmaps.sdk.routing.RoutingOptions;
 import app.organicmaps.sdk.settings.RoadType;
 import app.organicmaps.util.WindowInsetUtils.PaddingInsetsListener;
+import com.google.android.material.slider.Slider;
+import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -25,9 +29,13 @@ import java.util.Set;
 public class DrivingOptionsFragment extends BaseMwmToolbarFragment
 {
   public static final String BUNDLE_ROAD_TYPES = "road_types";
+  private static final String BUNDLE_ROUTE_SPEED = "route_speed";
   @NonNull
   private Set<RoadType> mRoadTypes = Collections.emptySet();
   private View mContent;
+  private boolean mRouteSpeedSupported;
+  private int mInitialRouteSpeedPercentage;
+  private int mRouteSpeedPercentage;
 
   @Nullable
   @Override
@@ -35,6 +43,12 @@ public class DrivingOptionsFragment extends BaseMwmToolbarFragment
                            @Nullable Bundle savedInstanceState)
   {
     View root = inflater.inflate(R.layout.fragment_driving_options, container, false);
+    mRouteSpeedSupported = Router.isRouteSpeedSettingSupported();
+    mInitialRouteSpeedPercentage =
+        mRouteSpeedSupported ? Router.getRouteSpeedPercentage() : Router.DEFAULT_ROUTE_SPEED_PERCENTAGE;
+    mRouteSpeedPercentage = savedInstanceState != null
+                              ? savedInstanceState.getInt(BUNDLE_ROUTE_SPEED, mInitialRouteSpeedPercentage)
+                              : mInitialRouteSpeedPercentage;
     initViews(root);
     ViewCompat.setOnApplyWindowInsetsListener(mContent, new PaddingInsetsListener(false, true, true, true));
     mRoadTypes = savedInstanceState != null && savedInstanceState.containsKey(BUNDLE_ROAD_TYPES)
@@ -65,10 +79,14 @@ public class DrivingOptionsFragment extends BaseMwmToolbarFragment
       savedRoadTypes.add(each.ordinal());
     }
     outState.putIntegerArrayList(BUNDLE_ROAD_TYPES, savedRoadTypes);
+    outState.putInt(BUNDLE_ROUTE_SPEED, mRouteSpeedPercentage);
   }
 
   private boolean areSettingsNotChanged()
   {
+    if (mRouteSpeedSupported)
+      return mInitialRouteSpeedPercentage == mRouteSpeedPercentage;
+
     Set<RoadType> lastActiveRoadTypes = RoutingOptions.getActiveRoadTypes();
     return mRoadTypes.equals(lastActiveRoadTypes);
   }
@@ -82,7 +100,8 @@ public class DrivingOptionsFragment extends BaseMwmToolbarFragment
     }
     else
     {
-      // The toggles already updated RoutingOptions; just signal a change so the caller rebuilds the route.
+      if (mRouteSpeedSupported && mInitialRouteSpeedPercentage != mRouteSpeedPercentage)
+        Router.setRouteSpeedPercentage(mRouteSpeedPercentage);
       requireActivity().setResult(Activity.RESULT_OK);
     }
 
@@ -92,6 +111,21 @@ public class DrivingOptionsFragment extends BaseMwmToolbarFragment
   private void initViews(@NonNull View root)
   {
     mContent = root.findViewById(R.id.content);
+    root.findViewById(R.id.car_options).setVisibility(mRouteSpeedSupported ? View.GONE : View.VISIBLE);
+
+    View routeSpeedOptions = root.findViewById(R.id.route_speed_options);
+    routeSpeedOptions.setVisibility(mRouteSpeedSupported ? View.VISIBLE : View.GONE);
+    if (mRouteSpeedSupported)
+    {
+      TextView routeSpeedValue = root.findViewById(R.id.route_speed_value);
+      Slider routeSpeedSlider = root.findViewById(R.id.route_speed_slider);
+      routeSpeedSlider.setValue(mRouteSpeedPercentage);
+      routeSpeedValue.setText(formatPercentage(mRouteSpeedPercentage));
+      routeSpeedSlider.addOnChangeListener((slider, value, fromUser) -> {
+        mRouteSpeedPercentage = Math.round(value);
+        routeSpeedValue.setText(formatPercentage(mRouteSpeedPercentage));
+      });
+    }
 
     SwitchCompat tollsBtn = root.findViewById(R.id.avoid_tolls_btn);
     tollsBtn.setChecked(RoutingOptions.hasOption(RoadType.Toll));
@@ -112,6 +146,12 @@ public class DrivingOptionsFragment extends BaseMwmToolbarFragment
     dirtyRoadsBtn.setChecked(RoutingOptions.hasOption(RoadType.Dirty));
     CompoundButton.OnCheckedChangeListener dirtyBtnListener = new ToggleRoutingOptionListener(RoadType.Dirty);
     dirtyRoadsBtn.setOnCheckedChangeListener(dirtyBtnListener);
+  }
+
+  @NonNull
+  private static String formatPercentage(int percentage)
+  {
+    return NumberFormat.getPercentInstance().format(percentage / 100.0);
   }
 
   private static class ToggleRoutingOptionListener implements CompoundButton.OnCheckedChangeListener

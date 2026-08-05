@@ -38,4 +38,19 @@ JNIEXPORT jint Java_app_organicmaps_sdk_Router_nativeGetBest(JNIEnv *, jclass, j
   return static_cast<jint>(frm()->GetRoutingManager().GetBestRouter(mercator::FromLatLon(srcLat, srcLon),
                                                                     mercator::FromLatLon(dstLat, dstLon)));
 }
+
+JNIEXPORT jboolean Java_app_organicmaps_sdk_Router_nativeIsRouteSpeedSettingSupported(JNIEnv *, jclass)
+{
+  return frm()->GetRoutingManager().IsRouteSpeedSettingSupported();
+}
+
+JNIEXPORT jint Java_app_organicmaps_sdk_Router_nativeGetRouteSpeedPercentage(JNIEnv *, jclass)
+{
+  return frm()->GetRoutingManager().GetRouteSpeedPercentage();
+}
+
+JNIEXPORT void Java_app_organicmaps_sdk_Router_nativeSetRouteSpeedPercentage(JNIEnv *, jclass, jint percentage)
+{
+  frm()->GetRoutingManager().SetRouteSpeedPercentage(percentage);
+}
 }

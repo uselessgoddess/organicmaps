@@ -67,7 +67,7 @@ public class RoutingPlanFragment extends Fragment implements View.OnLayoutChange
         if (activityResult.getResultCode() == android.app.Activity.RESULT_OK)
         {
           RoutingController.get().rebuildLastRoute();
-          mViewModel.setDrivingOptionsCount(RoutingOptions.getActiveRoadTypes().size());
+          mViewModel.setDrivingOptionsCount(getRoutingOptionsCount());
         }
       });
 
@@ -156,7 +156,7 @@ public class RoutingPlanFragment extends Fragment implements View.OnLayoutChange
     if (savedInstanceState != null)
       restoreRoutingPanelState(savedInstanceState);
 
-    updateBadgeCount(RoutingOptions.getActiveRoadTypes().size());
+    updateBadgeCount(getRoutingOptionsCount());
     mRoutingContainer.addOnLayoutChangeListener(this);
   }
 
@@ -362,12 +362,20 @@ public class RoutingPlanFragment extends Fragment implements View.OnLayoutChange
     }
   }
 
+  private static int getRoutingOptionsCount()
+  {
+    if (Router.isRouteSpeedSettingSupported())
+      return Router.getRouteSpeedPercentage() == Router.DEFAULT_ROUTE_SPEED_PERCENTAGE ? 0 : 1;
+    return RoutingOptions.getActiveRoadTypes().size();
+  }
+
   private void updateBuildProgress(int progress, @NonNull Router router)
   {
     if (getView() == null)
       return;
 
     mRouterTypes.check(routerToButtonId(router));
+    mViewModel.setDrivingOptionsCount(getRoutingOptionsCount());
     updateProgressLabels();
     final RoutingController controller = RoutingController.get();
     if (controller.isBuilding())
@@ -400,7 +408,7 @@ public class RoutingPlanFragment extends Fragment implements View.OnLayoutChange
     mViewModel.setBottomSheetState(state.getInt(TAG + "_bottom_sheet_state", BottomSheetBehavior.STATE_COLLAPSED));
     if (mRoutingBottomMenuController != null)
       mRoutingBottomMenuController.restoreRoutingPanelState(state);
-    updateBadgeCount(RoutingOptions.getActiveRoadTypes().size());
+    updateBadgeCount(getRoutingOptionsCount());
   }
 
   @Override
