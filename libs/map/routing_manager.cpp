@@ -26,6 +26,7 @@
 #include "platform/country_file.hpp"
 #include "platform/distance.hpp"
 #include "platform/duration.hpp"
+#include "platform/measurement_utils.hpp"
 #include "platform/platform.hpp"
 
 #include "geometry/algorithm.hpp"
@@ -555,9 +556,13 @@ void RoutingManager::SetRouterImpl(RouterType type)
 
     double const routeSpeedFactor =
         RouteSpeedSettings::IsSupported(vehicleType) ? RouteSpeedSettings::GetFactor(vehicleType) : 1.0;
-    router = std::make_unique<IndexRouter>(vehicleType, m_loadAltitudes, m_callbacks.m_countryParentNameGetterFn,
-                                           countryFileGetter, getMwmRectByName, m_numMwmIDs, m_numMwmTree,
-                                           m_routingSession, dataSource, routeSpeedFactor);
+    BicycleWindSettings const wind = RouteSpeedSettings::LoadBicycleWind();
+    double const windSpeedMpS =
+        vehicleType == VehicleType::Bicycle && wind.m_enabled ? measurement_utils::KmphToMps(wind.m_speedKMpH) : 0.0;
+    router =
+        std::make_unique<IndexRouter>(vehicleType, m_loadAltitudes, m_callbacks.m_countryParentNameGetterFn,
+                                      countryFileGetter, getMwmRectByName, m_numMwmIDs, m_numMwmTree, m_routingSession,
+                                      dataSource, routeSpeedFactor, windSpeedMpS, wind.m_directionDegrees);
     absentFinder = std::make_unique<AbsentRegionsFinder>(countryFileGetter, localFileChecker, m_numMwmIDs, dataSource);
   }
 
@@ -1543,6 +1548,48 @@ void RoutingManager::SetRouteSpeedPercentage(int percentage)
     return;
 
   RouteSpeedSettings::Save(vehicleType, percentage);
+  if (m_numMwmIDs)
+    SetRouterImpl(m_currentRouterType);
+}
+
+bool RoutingManager::IsBicycleWindSettingSupported() const
+{
+  return m_currentRouterType != RouterType::Count && GetVehicleType(m_currentRouterType) == VehicleType::Bicycle;
+}
+
+bool RoutingManager::IsBicycleWindEnabled() const
+{
+  CHECK(IsBicycleWindSettingSupported(), (m_currentRouterType));
+  return RouteSpeedSettings::LoadBicycleWind().m_enabled;
+}
+
+int RoutingManager::GetBicycleWindSpeedKMpH() const
+{
+  CHECK(IsBicycleWindSettingSupported(), (m_currentRouterType));
+  return RouteSpeedSettings::LoadBicycleWind().m_speedKMpH;
+}
+
+int RoutingManager::GetBicycleWindDirectionDegrees() const
+{
+  CHECK(IsBicycleWindSettingSupported(), (m_currentRouterType));
+  return RouteSpeedSettings::LoadBicycleWind().m_directionDegrees;
+}
+
+void RoutingManager::SetBicycleRouteSettings(int speedPercentage, bool windEnabled, int windSpeedKMpH,
+                                             int windDirectionDegrees)
+{
+  CHECK_THREAD_CHECKER(m_threadChecker, ("SetBicycleRouteSettings"));
+  CHECK(IsBicycleWindSettingSupported(), (m_currentRouterType));
+
+  BicycleWindSettings const wind{windEnabled, windSpeedKMpH, windDirectionDegrees};
+  if (RouteSpeedSettings::Load(VehicleType::Bicycle) == speedPercentage &&
+      RouteSpeedSettings::LoadBicycleWind() == wind)
+  {
+    return;
+  }
+
+  RouteSpeedSettings::Save(VehicleType::Bicycle, speedPercentage);
+  RouteSpeedSettings::SaveBicycleWind(wind);
   if (m_numMwmIDs)
     SetRouterImpl(m_currentRouterType);
 }

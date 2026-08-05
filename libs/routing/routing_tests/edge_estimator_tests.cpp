@@ -113,4 +113,33 @@ UNIT_TEST(RouteSpeedFactor_AffectsEtaOnly)
   TestRouteSpeedFactor(VehicleType::Pedestrian);
   TestRouteSpeedFactor(VehicleType::Bicycle);
 }
+
+UNIT_TEST(BicycleWind_AffectsEtaBySegmentDirection)
+{
+  auto const estimator = EdgeEstimator::Create(VehicleType::Bicycle, 20.0, SpeedKMpH(20.0), nullptr, nullptr, nullptr);
+  RoadGeometry const eastboundRoad(false /* oneWay */, Maxspeed(measurement_utils::Units::Metric, 20, kInvalidSpeed),
+                                   {{0.0, 0.0}, {0.001, 0.0}});
+  Segment const segment(kFakeNumMwmId, 0 /* featureId */, 0 /* segmentIdx */, true /* forward */);
+  double const weight = estimator->CalcSegmentWeight(segment, eastboundRoad, EdgeEstimator::Purpose::Weight);
+  double const eta = estimator->CalcSegmentWeight(segment, eastboundRoad, EdgeEstimator::Purpose::ETA);
+
+  estimator->SetWind(measurement_utils::KmphToMps(5.0), 270.0 /* from west */);
+  TEST_ALMOST_EQUAL_ABS(estimator->CalcSegmentWeight(segment, eastboundRoad, EdgeEstimator::Purpose::Weight), weight,
+                        kAccuracyEps, ());
+  TEST_ALMOST_EQUAL_ABS(estimator->CalcSegmentWeight(segment, eastboundRoad, EdgeEstimator::Purpose::ETA), eta / 1.25,
+                        kAccuracyEps, ());
+
+  estimator->SetWind(measurement_utils::KmphToMps(5.0), 90.0 /* from east */);
+  TEST_ALMOST_EQUAL_ABS(estimator->CalcSegmentWeight(segment, eastboundRoad, EdgeEstimator::Purpose::ETA), eta / 0.75,
+                        kAccuracyEps, ());
+
+  estimator->SetWind(measurement_utils::KmphToMps(5.0), 0.0 /* from north */);
+  TEST_ALMOST_EQUAL_ABS(estimator->CalcSegmentWeight(segment, eastboundRoad, EdgeEstimator::Purpose::ETA), eta,
+                        kAccuracyEps, ());
+
+  Segment const reverseSegment(kFakeNumMwmId, 0 /* featureId */, 0 /* segmentIdx */, false /* forward */);
+  estimator->SetWind(measurement_utils::KmphToMps(5.0), 270.0 /* from west */);
+  TEST_ALMOST_EQUAL_ABS(estimator->CalcSegmentWeight(reverseSegment, eastboundRoad, EdgeEstimator::Purpose::ETA),
+                        eta / 0.75, kAccuracyEps, ());
+}
 }  // namespace

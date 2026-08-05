@@ -7,12 +7,16 @@
 
 #include "traffic/speed_groups.hpp"
 
+#include "geometry/angles.hpp"
 #include "geometry/distance_on_sphere.hpp"
+#include "geometry/mercator.hpp"
 #include "geometry/point_with_altitude.hpp"
 
 #include "base/assert.hpp"
+#include "base/math.hpp"
 
 #include <algorithm>
+#include <cmath>
 
 namespace routing
 {
@@ -256,9 +260,38 @@ void EdgeEstimator::SetRouteSpeedFactor(double factor)
   m_routeSpeedFactor = factor;
 }
 
+void EdgeEstimator::SetWind(double speedMpS, double fromDirectionDegrees)
+{
+  CHECK_GREATER_OR_EQUAL(speedMpS, 0.0, ());
+  CHECK_GREATER_OR_EQUAL(fromDirectionDegrees, 0.0, ());
+  CHECK_LESS(fromDirectionDegrees, 360.0, ());
+  m_windSpeedMpS = speedMpS;
+  m_windFromDirectionDegrees = fromDirectionDegrees;
+}
+
 double EdgeEstimator::ApplyRouteSpeedFactor(double timeSec, Purpose purpose) const
 {
   return purpose == Purpose::ETA ? timeSec / m_routeSpeedFactor : timeSec;
+}
+
+double EdgeEstimator::ApplyRouteModifiers(double timeSec, Purpose purpose, ms::LatLon const & from,
+                                          ms::LatLon const & to) const
+{
+  timeSec = ApplyRouteSpeedFactor(timeSec, purpose);
+  if (purpose != Purpose::ETA || m_windSpeedMpS == 0.0 || timeSec == 0.0)
+    return timeSec;
+
+  double const distanceM = ms::DistanceOnEarth(from, to);
+  if (distanceM == 0.0)
+    return timeSec;
+
+  double const routeSpeedMpS = distanceM / timeSec;
+  double const routeDirection = ang::Azimuth(mercator::FromLatLon(from), mercator::FromLatLon(to));
+  double const windFromDirection = math::DegToRad(m_windFromDirectionDegrees);
+  double const tailwindMpS = -m_windSpeedMpS * std::cos(routeDirection - windFromDirection);
+  // Keep a strong headwind from producing a zero or negative ground speed in this simplified model.
+  double const adjustedSpeedMpS = std::max(routeSpeedMpS + tailwindMpS, routeSpeedMpS * 0.25);
+  return distanceM / adjustedSpeedMpS;
 }
 
 double EdgeEstimator::CalcOffroad(ms::LatLon const & from, ms::LatLon const & to, Purpose purpose) const
@@ -268,7 +301,7 @@ double EdgeEstimator::CalcOffroad(ms::LatLon const & from, ms::LatLon const & to
     return 0.0;
 
   double const time = TimeBetweenSec(from, to, KmphToMps(offroadSpeedKMpH));
-  return ApplyRouteSpeedFactor(purpose == Purpose::Weight ? time * m_transitWalkWeightFactor : time, purpose);
+  return ApplyRouteModifiers(purpose == Purpose::Weight ? time * m_transitWalkWeightFactor : time, purpose, from, to);
 }
 
 // PedestrianEstimator -----------------------------------------------------------------------------
@@ -303,7 +336,11 @@ public:
     // Bias the transit alternative away from walking (see SetTransitAltFactors). No-op (factor 1.0)
     // for standalone pedestrian routing and for the primary transit route.
     double const adjustedWeight = purpose == Purpose::Weight ? weight * GetTransitWalkWeightFactor() : weight;
-    return IsTransit(road.GetHighwayType()) ? adjustedWeight : ApplyRouteSpeedFactor(adjustedWeight, purpose);
+    if (IsTransit(road.GetHighwayType()))
+      return adjustedWeight;
+    auto const & from = road.GetJunction(segment.GetPointId(false /* front */)).GetLatLon();
+    auto const & to = road.GetJunction(segment.GetPointId(true /* front */)).GetLatLon();
+    return ApplyRouteModifiers(adjustedWeight, purpose, from, to);
   }
 };
 
@@ -363,7 +400,11 @@ public:
 
       return std::min(speedMpS, GetMaxWeightSpeedMpS());
     });
-    return IsTransit(road.GetHighwayType()) ? time : ApplyRouteSpeedFactor(time, purpose);
+    if (IsTransit(road.GetHighwayType()))
+      return time;
+    auto const & from = road.GetJunction(segment.GetPointId(false /* front */)).GetLatLon();
+    auto const & to = road.GetJunction(segment.GetPointId(true /* front */)).GetLatLon();
+    return ApplyRouteModifiers(time, purpose, from, to);
   }
 };
 

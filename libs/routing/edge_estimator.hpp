@@ -60,6 +60,8 @@ public:
   /// Scales moving time for ETA calculations. Routing weights and fixed penalties are unchanged.
   void SetRouteSpeedFactor(double factor);
   double GetRouteSpeedFactor() const { return m_routeSpeedFactor; }
+  /// Sets wind speed in meters per second and the compass direction it comes from, in degrees.
+  void SetWind(double speedMpS, double fromDirectionDegrees);
 
   double CalcHeuristic(ms::LatLon const & from, ms::LatLon const & to) const;
   // Estimates time in seconds it takes to go from point |from| to point |to| along a leap (fake)
@@ -91,6 +93,7 @@ public:
 
 protected:
   double ApplyRouteSpeedFactor(double timeSec, Purpose purpose) const;
+  double ApplyRouteModifiers(double timeSec, Purpose purpose, ms::LatLon const & from, ms::LatLon const & to) const;
 
 private:
   double const m_maxWeightSpeedMpS;
@@ -99,6 +102,8 @@ private:
   double m_transitWalkWeightFactor = 1.0;
   double m_transitTransferFactor = 1.0;
   double m_routeSpeedFactor = 1.0;
+  double m_windSpeedMpS = 0.0;
+  double m_windFromDirectionDegrees = 0.0;
 
   // DataSource * m_dataSourcePtr;
   // std::shared_ptr<NumMwmIds> m_numMwmIds;

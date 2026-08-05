@@ -123,6 +123,11 @@ public:
   bool IsRouteSpeedSettingSupported() const;
   int GetRouteSpeedPercentage() const;
   void SetRouteSpeedPercentage(int percentage);
+  bool IsBicycleWindSettingSupported() const;
+  bool IsBicycleWindEnabled() const;
+  int GetBicycleWindSpeedKMpH() const;
+  int GetBicycleWindDirectionDegrees() const;
+  void SetBicycleRouteSettings(int speedPercentage, bool windEnabled, int windSpeedKMpH, int windDirectionDegrees);
   bool IsRoutingActive() const { return m_routingSession.IsActive(); }
   bool IsRouteBuilt() const { return m_routingSession.IsBuilt(); }
   bool IsRouteBuilding() const { return m_routingSession.IsBuilding(); }

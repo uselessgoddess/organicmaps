@@ -29,17 +29,20 @@ public:
   RouteSpeedSettingsTests()
     : m_savedPedestrian(RouteSpeedSettings::Load(VehicleType::Pedestrian))
     , m_savedBicycle(RouteSpeedSettings::Load(VehicleType::Bicycle))
+    , m_savedWind(RouteSpeedSettings::LoadBicycleWind())
   {}
 
   ~RouteSpeedSettingsTests()
   {
     RouteSpeedSettings::Save(VehicleType::Pedestrian, m_savedPedestrian);
     RouteSpeedSettings::Save(VehicleType::Bicycle, m_savedBicycle);
+    RouteSpeedSettings::SaveBicycleWind(m_savedWind);
   }
 
 private:
   int const m_savedPedestrian;
   int const m_savedBicycle;
+  BicycleWindSettings const m_savedWind;
 };
 
 RoutingOptions CreateOptions(std::vector<RoutingOptions::Road> const & include)
@@ -105,5 +108,14 @@ UNIT_CLASS_TEST(RouteSpeedSettingsTests, SavesEachModeSeparately)
   TEST_EQUAL(RouteSpeedSettings::Load(VehicleType::Bicycle), 175, ());
   TEST_ALMOST_EQUAL_ABS(RouteSpeedSettings::GetFactor(VehicleType::Pedestrian), 1.15, 1e-9, ());
   TEST_ALMOST_EQUAL_ABS(RouteSpeedSettings::GetFactor(VehicleType::Bicycle), 1.75, 1e-9, ());
+}
+
+UNIT_CLASS_TEST(RouteSpeedSettingsTests, SavesBicycleWind)
+{
+  RouteSpeedSettings::SaveBicycleWind({true, 30, 225});
+  auto const wind = RouteSpeedSettings::LoadBicycleWind();
+  TEST(wind.m_enabled, ());
+  TEST_EQUAL(wind.m_speedKMpH, 30, ());
+  TEST_EQUAL(wind.m_directionDegrees, 225, ());
 }
 }  // namespace
