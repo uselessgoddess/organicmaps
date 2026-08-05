@@ -27349,6 +27349,18 @@ vi = Thiết lập đi vòng
 zh-Hans = 绕行设置
 zh-Hant = 繞行設定
 
+[route_speed_title]
+tags = android-app,apple-maps
+en = Travel speed
+ru = Скорость передвижения
+uk = Швидкість пересування
+
+[route_speed_description]
+tags = android-app,apple-maps
+en = Adjusts estimated travel time to your pace. Route choice is unchanged.
+ru = Корректирует расчётное время в пути с учётом вашего темпа. Маршрут не меняется.
+uk = Коригує розрахунковий час у дорозі з урахуванням вашого темпу. Маршрут не змінюється.
+
 [avoid_tolls]
 comment = Recommended length for CarPlay and Android Auto is around 25-27 characters
 tags = android-app,android-libs-car,apple-maps
