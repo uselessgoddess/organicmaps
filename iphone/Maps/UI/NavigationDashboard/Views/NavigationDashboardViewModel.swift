@@ -98,7 +98,11 @@ extension CGRect {
 extension RoutingOptions {
   var enabledOptionsCount: Int {
     if routeSpeedSettingSupported {
-      return routeSpeedPercentage == RoutingOptions.defaultRouteSpeedPercentage ? 0 : 1
+      var count = routeSpeedPercentage == RoutingOptions.defaultRouteSpeedPercentage ? 0 : 1
+      if bicycleWindSettingSupported, bicycleWindEnabled {
+        count += 1
+      }
+      return count
     }
     return [avoidToll, avoidDirty, avoidFerry, avoidMotorway].filter { $0 }.count
   }

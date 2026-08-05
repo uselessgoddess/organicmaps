@@ -16,13 +16,24 @@ final class RoutingOptionsSettingsPresenter {
 
   private func sections(from state: RoutingOptionsSettingsState) -> [RoutingOptionsSettingsSectionViewModel] {
     if state.options.routeSpeedSettingSupported {
-      return [SettingsSectionViewModel(section: .routeSpeed,
-                                       header: RoutingOptionsSettingsSection.routeSpeed.title,
-                                       footer: RoutingOptionsSettingsSection.routeSpeed.footer,
-                                       items: [routeSpeedItem(state)])]
+      var sections = [SettingsSectionViewModel(section: .routeSpeed,
+                                               header: RoutingOptionsSettingsSection.routeSpeed.title,
+                                               footer: RoutingOptionsSettingsSection.routeSpeed.footer,
+                                               items: [routeSpeedItem(state)])]
+      if state.options.bicycleWindSettingSupported {
+        var windItems = [windEnabledItem(state)]
+        if state.bicycleWindEnabled {
+          windItems.append(windSpeedItem(state))
+          windItems.append(windDirectionItem(state))
+        }
+        sections.append(SettingsSectionViewModel(section: .wind,
+                                                 footer: RoutingOptionsSettingsSection.wind.footer,
+                                                 items: windItems))
+      }
+      return sections
     }
     return [SettingsSectionViewModel(section: .options,
-                                     items: RoutingOption.allCases.filter { $0 != .routeSpeed }.map {
+                                     items: [.tollRoads, .unpavedRoads, .ferryCrossings, .motorways].map {
                                        item($0, state: state)
                                      })]
   }
@@ -44,5 +55,44 @@ final class RoutingOptionsSettingsPresenter {
                                                maximumValue: Float(RoutingOptions.maximumRouteSpeedPercentage),
                                                valueTitle: valueTitle,
                                                isEnabled: true))
+  }
+
+  private func windEnabledItem(_ state: RoutingOptionsSettingsState) -> RoutingOptionsSettingsItemViewModel {
+    SettingsItemViewModel(item: .windEnabled,
+                          title: RoutingOption.windEnabled.title,
+                          kind: .switcher(isOn: state.bicycleWindEnabled, isEnabled: true))
+  }
+
+  private func windSpeedItem(_ state: RoutingOptionsSettingsState) -> RoutingOptionsSettingsItemViewModel {
+    SettingsItemViewModel(item: .windSpeed,
+                          title: RoutingOption.windSpeed.title,
+                          kind: .slider(value: Float(state.bicycleWindSpeedKMpH),
+                                        minimumValue: Float(RoutingOptions.minimumBicycleWindSpeedKMpH),
+                                        maximumValue: Float(RoutingOptions.maximumBicycleWindSpeedKMpH),
+                                        valueTitle: windSpeedTitle(state.bicycleWindSpeedKMpH),
+                                        isEnabled: true))
+  }
+
+  private func windDirectionItem(_ state: RoutingOptionsSettingsState) -> RoutingOptionsSettingsItemViewModel {
+    let degrees = state.bicycleWindDirectionDegrees
+    let labels = ["route_wind_direction_n", "route_wind_direction_ne", "route_wind_direction_e",
+                  "route_wind_direction_se", "route_wind_direction_s", "route_wind_direction_sw",
+                  "route_wind_direction_w", "route_wind_direction_nw"]
+    let label = L(labels[degrees / RoutingOptions.bicycleWindDirectionStepDegrees])
+    return SettingsItemViewModel(item: .windDirection,
+                                 title: RoutingOption.windDirection.title,
+                                 kind: .slider(value: Float(degrees),
+                                               minimumValue: 0,
+                                               maximumValue: 315,
+                                               valueTitle: "\(label) · \(degrees)°",
+                                               isEnabled: true))
+  }
+
+  private func windSpeedTitle(_ speedKMpH: Int) -> String {
+    if Settings.measurementUnits() == .imperial {
+      let speedMPH = Int((Double(speedKMpH) * 0.621371192).rounded())
+      return "\(speedMPH)\u{00a0}\(L("miles_per_hour"))"
+    }
+    return "\(speedKMpH)\u{00a0}\(L("kilometers_per_hour"))"
   }
 }

@@ -1,6 +1,7 @@
 enum RoutingOptionsSettingsSection: String {
   case options
   case routeSpeed
+  case wind
 }
 
 extension RoutingOptionsSettingsSection {
@@ -8,6 +9,7 @@ extension RoutingOptionsSettingsSection {
     switch self {
     case .options: return nil
     case .routeSpeed: return L("route_speed_title")
+    case .wind: return nil
     }
   }
 
@@ -15,6 +17,7 @@ extension RoutingOptionsSettingsSection {
     switch self {
     case .options: return nil
     case .routeSpeed: return L("route_speed_description")
+    case .wind: return L("route_wind_description")
     }
   }
 }
@@ -25,6 +28,9 @@ enum RoutingOption: String, CaseIterable {
   case ferryCrossings
   case motorways
   case routeSpeed
+  case windEnabled
+  case windSpeed
+  case windDirection
 }
 
 extension RoutingOption {
@@ -35,6 +41,9 @@ extension RoutingOption {
     case .ferryCrossings: return L("avoid_ferry")
     case .motorways: return L("avoid_motorways")
     case .routeSpeed: return L("route_speed_title")
+    case .windEnabled: return L("route_wind_enabled")
+    case .windSpeed: return L("route_wind_speed")
+    case .windDirection: return L("route_wind_direction")
     }
   }
 
@@ -54,7 +63,7 @@ extension RoutingOption {
     case .unpavedRoads: return \.avoidDirty
     case .ferryCrossings: return \.avoidFerry
     case .motorways: return \.avoidMotorway
-    case .routeSpeed: return nil
+    case .routeSpeed, .windEnabled, .windSpeed, .windDirection: return nil
     }
   }
 }
@@ -62,6 +71,9 @@ extension RoutingOption {
 struct RoutingOptionsSettingsState {
   let options: RoutingOptions
   var routeSpeedPercentage: Int
+  var bicycleWindEnabled: Bool
+  var bicycleWindSpeedKMpH: Int
+  var bicycleWindDirectionDegrees: Int
 }
 
 typealias RoutingOptionsSettingsViewController = SettingsViewController<RoutingOptionsSettingsSection, RoutingOption>
