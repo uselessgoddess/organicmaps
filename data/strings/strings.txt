@@ -27351,15 +27351,15 @@ zh-Hant = 繞行設定
 
 [route_speed_title]
 tags = android-app,apple-maps
-en = Travel speed
-ru = Скорость передвижения
-uk = Швидкість пересування
+en = Cruising speed
+ru = Крейсерская скорость
+uk = Крейсерська швидкість
 
 [route_speed_description]
 tags = android-app,apple-maps
-en = Adjusts estimated travel time to your pace. Route choice is unchanged.
-ru = Корректирует расчётное время в пути с учётом вашего темпа. Маршрут не меняется.
-uk = Коригує розрахунковий час у дорозі з урахуванням вашого темпу. Маршрут не змінюється.
+en = Your usual speed on flat pavement. Terrain and road conditions are still considered; route choice is unchanged.
+ru = Ваша обычная скорость на ровном асфальте. Рельеф и дорожные условия по-прежнему учитываются; маршрут не меняется.
+uk = Ваша звичайна швидкість на рівному асфальті. Рельєф і дорожні умови, як і раніше, враховуються; маршрут не змінюється.
 
 [route_wind_enabled]
 tags = android-app,apple-maps
