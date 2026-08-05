@@ -1,10 +1,15 @@
 #import "MWMRoutingOptions.h"
 
+#include <CoreApi/Framework.h>
+
+#include "routing/route_speed_settings.hpp"
 #include "routing/routing_options.hpp"
 
 @interface MWMRoutingOptions ()
 {
   routing::RoutingOptions _options;
+  BOOL _routeSpeedSettingSupported;
+  NSInteger _routeSpeedPercentage;
 }
 
 @end
@@ -15,7 +20,13 @@
 {
   self = [super init];
   if (self)
+  {
     _options = routing::RoutingOptions::LoadCarOptionsFromSettings();
+    auto const & routingManager = GetFramework().GetRoutingManager();
+    _routeSpeedSettingSupported = routingManager.IsRouteSpeedSettingSupported();
+    _routeSpeedPercentage = _routeSpeedSettingSupported ? routingManager.GetRouteSpeedPercentage()
+                                                        : routing::RouteSpeedSettings::kDefaultPercentage;
+  }
 
   return self;
 }
@@ -62,7 +73,45 @@
 
 - (BOOL)hasOptions
 {
+  if (self.routeSpeedSettingSupported)
+    return self.routeSpeedPercentage != self.class.defaultRouteSpeedPercentage;
   return self.avoidToll || self.avoidDirty || self.avoidFerry || self.avoidMotorway;
+}
+
+- (BOOL)routeSpeedSettingSupported
+{
+  return _routeSpeedSettingSupported;
+}
+
+- (NSInteger)routeSpeedPercentage
+{
+  return _routeSpeedPercentage;
+}
+
+- (void)setRouteSpeedPercentage:(NSInteger)percentage
+{
+  GetFramework().GetRoutingManager().SetRouteSpeedPercentage(static_cast<int>(percentage));
+  _routeSpeedPercentage = percentage;
+}
+
++ (NSInteger)defaultRouteSpeedPercentage
+{
+  return routing::RouteSpeedSettings::kDefaultPercentage;
+}
+
++ (NSInteger)minimumRouteSpeedPercentage
+{
+  return routing::RouteSpeedSettings::kMinPercentage;
+}
+
++ (NSInteger)maximumRouteSpeedPercentage
+{
+  return routing::RouteSpeedSettings::kMaxPercentage;
+}
+
++ (NSInteger)routeSpeedPercentageStep
+{
+  return routing::RouteSpeedSettings::kStepPercentage;
 }
 
 - (void)save
@@ -84,7 +133,9 @@
     return NO;
   MWMRoutingOptions * another = (MWMRoutingOptions *)object;
   return another.avoidToll == self.avoidToll && another.avoidDirty == self.avoidDirty &&
-         another.avoidFerry == self.avoidFerry && another.avoidMotorway == self.avoidMotorway;
+         another.avoidFerry == self.avoidFerry && another.avoidMotorway == self.avoidMotorway &&
+         another.routeSpeedSettingSupported == self.routeSpeedSettingSupported &&
+         (!self.routeSpeedSettingSupported || another.routeSpeedPercentage == self.routeSpeedPercentage);
 }
 
 @end

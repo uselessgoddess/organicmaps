@@ -97,6 +97,9 @@ extension CGRect {
 
 extension RoutingOptions {
   var enabledOptionsCount: Int {
-    [avoidToll, avoidDirty, avoidFerry, avoidMotorway].filter { $0 }.count
+    if routeSpeedSettingSupported {
+      return routeSpeedPercentage == RoutingOptions.defaultRouteSpeedPercentage ? 0 : 1
+    }
+    return [avoidToll, avoidDirty, avoidFerry, avoidMotorway].filter { $0 }.count
   }
 }
