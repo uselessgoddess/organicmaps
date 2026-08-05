@@ -1,11 +1,15 @@
 package app.organicmaps.sdk.routing;
 
+import androidx.annotation.Keep;
 import androidx.annotation.Nullable;
 
 /**
  * The personal speed the user keeps and, for bicycles, the wind they ride in, together with the
  * limits the UI has to respect.
  */
+// Called from JNI.
+@Keep
+@SuppressWarnings("unused")
 public final class RouteSpeedSettings
 {
   public static final int WIND_DIRECTION_STEP_DEGREES = 45;
