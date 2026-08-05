@@ -715,6 +715,8 @@
 "show_at_the_bottom" = "Vis nederst";
 "enable_logging_warning_message" = "Alternativet slår på logging for diagnostiske formål. Det kan være nyttig for våre supportpersonale som feilsøker problemer med appen. Aktiver dette alternativet bare på forespørsel fra Organic Maps-brukerstøtte.";
 "driving_options_title" = "Kjørealternativer";
+"route_speed_title" = "Travel speed";
+"route_speed_description" = "Adjusts estimated travel time to your pace. Route choice is unchanged.";
 
 /* Recommended length for CarPlay and Android Auto is around 25-27 characters */
 "avoid_tolls" = "Unngå bompenger";

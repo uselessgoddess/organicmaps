@@ -715,6 +715,8 @@
 "show_at_the_bottom" = "Mostrar na parte inferior";
 "enable_logging_warning_message" = "Active esta opción temporalmente para gravar e enviar de forma manual rexistros para diagnosticar defectos enviados mediante a opción «Informar dun fallo» no diálogo Axuda. Os rexistros poden incluír localizacións.";
 "driving_options_title" = "Opcións de encamiñamento";
+"route_speed_title" = "Travel speed";
+"route_speed_description" = "Adjusts estimated travel time to your pace. Route choice is unchanged.";
 
 /* Recommended length for CarPlay and Android Auto is around 25-27 characters */
 "avoid_tolls" = "Evitar peaxes";

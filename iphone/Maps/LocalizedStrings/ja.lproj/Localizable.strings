@@ -715,6 +715,8 @@
 "show_at_the_bottom" = "下部に表示";
 "enable_logging_warning_message" = "このオプションは診断目的でのデータ記録を有効にします。これはこのアプリケーションのトラブルシューティングを担当する当社のサポートスタッフの助けになります。このオプションはOrganic Mapsにリクエストされた場合にのみ有効にしてください。";
 "driving_options_title" = "経路オプション";
+"route_speed_title" = "Travel speed";
+"route_speed_description" = "Adjusts estimated travel time to your pace. Route choice is unchanged.";
 
 /* Recommended length for CarPlay and Android Auto is around 25-27 characters */
 "avoid_tolls" = "有料道路を避ける";

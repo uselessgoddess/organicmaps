@@ -715,6 +715,8 @@
 "show_at_the_bottom" = "در پایین نمایش دهید";
 "enable_logging_warning_message" = "این گزینه ثبت گزارش را برای اهداف تشخیصی فعال می‌کند. برای کارکنان بخش پشتیبانی که مشکلات برنامه را عیب یابی می‌کنند، مفید باشد. این گزینه را تنها در صورت درخواست پشتیبانی Organic Maps فعال کنید.";
 "driving_options_title" = "گزینه‌های رانندگی";
+"route_speed_title" = "Travel speed";
+"route_speed_description" = "Adjusts estimated travel time to your pace. Route choice is unchanged.";
 
 /* Recommended length for CarPlay and Android Auto is around 25-27 characters */
 "avoid_tolls" = "از جاده های عوارضی خودداری کنید";

@@ -715,6 +715,8 @@
 "show_at_the_bottom" = "اعرض في الأسفل";
 "enable_logging_warning_message" = "هذا الخيار يقوم ببدأ تسجيل سجلات التطبيق لإغراض التشخيصة. يمكن أن يكون مفيدًا لفريق الدعم الخاص بنا لحل المشاكل التي تواجهكم داخل التطبيق. قم بتفعيل هذا الخيار بشكل مؤقت فقط في حالة طلب الدعم من Organic Maps.";
 "driving_options_title" = "خيارات رسم المسار";
+"route_speed_title" = "Travel speed";
+"route_speed_description" = "Adjusts estimated travel time to your pace. Route choice is unchanged.";
 
 /* Recommended length for CarPlay and Android Auto is around 25-27 characters */
 "avoid_tolls" = "تجنب الطرق ذات الرسوم";

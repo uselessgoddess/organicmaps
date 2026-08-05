@@ -678,6 +678,8 @@
     <string name="show_at_the_bottom">Под меткой</string>
     <string name="enable_logging_warning_message">Данная настройка включается для записи действий в целях диагностики, чтобы помочь нашей команде выявить проблемы с приложением. Временно включайте эту настройку только для отправки детальной информации о найденной вами проблеме в приложении через кнопку \"Сообщить о проблеме\".</string>
     <string name="driving_options_title">Настройки объезда</string>
+    <string name="route_speed_title">Скорость передвижения</string>
+    <string name="route_speed_description">Корректирует расчётное время в пути с учётом вашего темпа. Маршрут не меняется.</string>
     <!-- Recommended length for CarPlay and Android Auto is around 25-27 characters -->
     <string name="avoid_tolls">Избегать платных дорог</string>
     <!-- Recommended length for CarPlay and Android Auto is around 25-27 characters -->

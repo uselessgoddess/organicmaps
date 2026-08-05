@@ -715,6 +715,8 @@
 "show_at_the_bottom" = "Mostra in basso";
 "enable_logging_warning_message" = "Attiva questa opzione temporaneamente per registrare e inviarci manualmente dei log diagnostici riguardo al tuo problema usando \"Segnala un bug\" nella sezione Aiuto. I log potrebbero contenere informazioni sulla posizione.";
 "driving_options_title" = "Impostazioni del percorso";
+"route_speed_title" = "Travel speed";
+"route_speed_description" = "Adjusts estimated travel time to your pace. Route choice is unchanged.";
 
 /* Recommended length for CarPlay and Android Auto is around 25-27 characters */
 "avoid_tolls" = "Evita le strade a pedaggio";
